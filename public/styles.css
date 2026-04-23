@@ -426,17 +426,27 @@ button:disabled { opacity: 0.7; cursor: not-allowed; }
 }
 .empty { justify-content: center; color: #7c8791; }
 
+.profile-top-title {
+  margin: 0 0 0.4rem;
+  text-align: center;
+  color: #1b2b44;
+  font-size: 1.05rem;
+}
 .profile-shell {
   background: linear-gradient(135deg, #f9fffc 0%, #f4f7ff 100%);
   border: 1px solid #e2e9f2;
   border-radius: 18px;
   padding: 1rem;
+  display: grid;
+  place-items: center;
 }
 .profile-layout {
   display: grid;
-  grid-template-columns: minmax(220px, 360px) minmax(180px, 1fr);
+  grid-template-columns: minmax(220px, 360px);
   gap: 0.85rem;
   align-items: stretch;
+  justify-content: center;
+  width: 100%;
 }
 
 .profile-card {
@@ -471,10 +481,6 @@ button:disabled { opacity: 0.7; cursor: not-allowed; }
   font-size: 0.92rem;
   color: #152238;
 }
-.avatar-actions p span {
-  color: #667487;
-  font-size: 0.8rem;
-}
 .avatar-upload {
   display: inline-flex;
   align-items: center;
@@ -494,19 +500,6 @@ button:disabled { opacity: 0.7; cursor: not-allowed; }
   transform: translateY(-1px);
   box-shadow: 0 8px 16px rgba(22, 132, 84, 0.2);
 }
-.profile-fields h3 {
-  margin: 0 0 0.25rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #1b2b44;
-}
-.profile-fields p {
-  margin: 0;
-  color: #667487;
-  font-size: 0.88rem;
-}
-
 @media (max-width: 1050px) {
   #dashboardView { grid-template-columns: 1fr; }
   .sidebar { grid-template-columns: 1fr; }

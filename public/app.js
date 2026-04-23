@@ -219,8 +219,6 @@ function applyBrandingToUI() {
   headerAvatar.src = branding.adminPhoto;
   profileAvatarPreview.src = branding.adminPhoto;
 
-  profileForm.siteName.value = branding.siteName;
-  profileForm.logoImage.value = branding.logoImage || '';
   profileForm.adminName.value = branding.adminName;
   profileForm.adminEmail.value = branding.adminEmail;
   profileForm.adminPhoto.value = branding.adminPhoto;
@@ -570,7 +568,7 @@ profileForm.addEventListener('submit', (event) => {
   const fields = new FormData(profileForm);
   const avatarValue = String(fields.get('adminPhoto') || '').trim();
 
-  localStorage.setItem('site_name', fields.get('siteName'));
+  localStorage.setItem('site_name', getBranding().siteName);
   localStorage.setItem('logo_image', MAIN_LOGO_SOURCE);
   localStorage.setItem('admin_name', fields.get('adminName'));
   localStorage.setItem('admin_email', fields.get('adminEmail'));

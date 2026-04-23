@@ -185,14 +185,11 @@
               </label>
               <input id="avatarUploadInput" name="avatarUploadInput" type="file" accept="image/*" hidden />
               <button id="removeAvatarBtn" type="button" class="secondary"><i class="fas fa-eraser"></i> Remove</button>
-              <small>Stored in your browser localStorage.</small>
             </div>
           </div>
-          <label><i class="fas fa-link"></i> Avatar URL fallback <input name="adminPhoto" type="url" placeholder="https://..." /></label>
         </div>
+        <input name="adminPhoto" type="hidden" />
         <div class="grid2">
-          <label><i class="fas fa-globe"></i> Site Name <input name="siteName" type="text" required /></label>
-          <label><i class="fas fa-image"></i> Logo Image (fixed) <input name="logoImage" type="text" value="/img/Black-Logo.png" readonly /></label>
           <label><i class="fas fa-user-shield"></i> Admin Name <input name="adminName" type="text" required /></label>
           <label><i class="fas fa-envelope"></i> Admin Email <input name="adminEmail" type="email" required /></label>
           <label class="full"><i class="fas fa-pen-fancy"></i> Bio <textarea name="bio" rows="3" placeholder="Write a short, modern intro for your profile..."></textarea></label>

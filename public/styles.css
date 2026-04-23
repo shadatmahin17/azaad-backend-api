@@ -469,7 +469,6 @@ button:disabled { opacity: 0.7; cursor: not-allowed; }
   cursor: pointer;
   font-size: 0.82rem;
 }
-.avatar-actions small { color: #7b8590; }
 
 @media (max-width: 1050px) {
   #dashboardView { grid-template-columns: 1fr; }

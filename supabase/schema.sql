@@ -9,18 +9,6 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default now()
 );
 
-create unique index if not exists profiles_email_unique_idx
-on public.profiles (lower(email))
-where email is not null;
-
-create unique index if not exists profiles_full_name_unique_idx
-on public.profiles (lower(full_name))
-where full_name is not null;
-
-create unique index if not exists profiles_avatar_url_unique_idx
-on public.profiles (avatar_url)
-where avatar_url is not null;
-
 create or replace function public.handle_profiles_updated_at()
 returns trigger
 language plpgsql

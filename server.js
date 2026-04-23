@@ -3,6 +3,15 @@ const cors = require('cors');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const dotenvModulePath = path.join(__dirname, 'node_modules', 'dotenv');
+const supabaseModulePath = path.join(__dirname, 'node_modules', '@supabase', 'supabase-js');
+
+const dotenv = fs.existsSync(dotenvModulePath) ? require('dotenv') : null;
+const createSupabaseClient = fs.existsSync(supabaseModulePath)
+  ? require('@supabase/supabase-js').createClient
+  : null;
+
+if (dotenv) dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,6 +32,18 @@ const SONGS_FILE = process.env.SONGS_FILE
 const LEGACY_SONGS_FILE = path.join(__dirname, 'data', 'songs.json');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
+const SUPABASE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const SUPABASE_STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'avatars';
+const USE_SUPABASE = Boolean(SUPABASE_URL && (SUPABASE_SERVICE_ROLE_KEY || SUPABASE_PUBLISHABLE_KEY));
+
+const supabaseAdmin = USE_SUPABASE && createSupabaseClient
+  ? createSupabaseClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY || SUPABASE_PUBLISHABLE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  })
+  : null;
+
 [path.dirname(SONGS_FILE), UPLOADS_DIR, AUDIO_DIR, COVER_DIR, PUBLIC_DIR].forEach((dir) => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
@@ -39,6 +60,34 @@ app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(UPLOADS_DIR));
 app.use(express.static(PUBLIC_DIR));
+
+function ensureSupabaseReady(res) {
+  if (!supabaseAdmin) {
+    res.status(500).json({ error: 'Supabase is not configured. Set env values and install Supabase packages first.' });
+    return false;
+  }
+  return true;
+}
+
+async function requireSupabaseUser(req, res, next) {
+  if (!ensureSupabaseReady(res)) return;
+
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+
+  if (!token) {
+    return res.status(401).json({ error: 'Missing bearer token' });
+  }
+
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  if (error || !data?.user) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+
+  req.supabaseAccessToken = token;
+  req.supabaseUser = data.user;
+  return next();
+}
 
 function readSongs() {
   try {
@@ -133,6 +182,11 @@ const upload = multer({
   }
 });
 
+const avatarUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { files: 1, fileSize: 5 * 1024 * 1024 }
+});
+
 app.get('/api', (req, res) => {
   res.json({
     ok: true,
@@ -141,9 +195,146 @@ app.get('/api', (req, res) => {
       list: 'GET /api/songs',
       create: 'POST /api/songs',
       update: 'PUT /api/songs/:id',
-      delete: 'DELETE /api/songs/:id'
+      delete: 'DELETE /api/songs/:id',
+      signup: 'POST /api/auth/signup',
+      signin: 'POST /api/auth/signin',
+      profile: 'GET /api/profile-view'
     }
   });
+});
+
+app.post('/api/auth/signup', async (req, res) => {
+  if (!ensureSupabaseReady(res)) return;
+
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  const fullName = typeof req.body?.fullName === 'string' ? req.body.fullName.trim() : '';
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'email and password are required' });
+  }
+
+  const { data, error } = await supabaseAdmin.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        full_name: fullName || null
+      }
+    }
+  });
+
+  if (error) return res.status(400).json({ error: error.message });
+
+  if (data?.user) {
+    await supabaseAdmin.from('profiles').upsert({
+      id: data.user.id,
+      email: data.user.email,
+      full_name: fullName || null
+    });
+  }
+
+  return res.status(201).json({
+    message: 'Signup successful. Check your email if confirmation is enabled.',
+    user: data.user,
+    session: data.session
+  });
+});
+
+app.post('/api/auth/signin', async (req, res) => {
+  if (!ensureSupabaseReady(res)) return;
+
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'email and password are required' });
+  }
+
+  const { data, error } = await supabaseAdmin.auth.signInWithPassword({ email, password });
+  if (error || !data?.session) {
+    return res.status(401).json({ error: error?.message || 'Invalid login credentials' });
+  }
+
+  return res.json({
+    accessToken: data.session.access_token,
+    refreshToken: data.session.refresh_token,
+    user: data.user,
+    expiresAt: data.session.expires_at
+  });
+});
+
+app.get('/api/profile-view', requireSupabaseUser, async (req, res) => {
+  const user = req.supabaseUser;
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  return res.json({
+    id: user.id,
+    email: user.email,
+    profile: {
+      full_name: profile?.full_name || user.user_metadata?.full_name || '',
+      avatar_url: profile?.avatar_url || null,
+      bio: profile?.bio || ''
+    }
+  });
+});
+
+app.put('/api/profile', requireSupabaseUser, async (req, res) => {
+  const user = req.supabaseUser;
+  const fullName = typeof req.body?.fullName === 'string' ? req.body.fullName.trim() : null;
+  const bio = typeof req.body?.bio === 'string' ? req.body.bio.trim() : null;
+
+  const payload = {
+    id: user.id,
+    email: user.email,
+    full_name: fullName,
+    bio
+  };
+
+  const { data, error } = await supabaseAdmin
+    .from('profiles')
+    .upsert(payload)
+    .select('*')
+    .single();
+
+  if (error) return res.status(400).json({ error: error.message });
+  return res.json(data);
+});
+
+app.post('/api/profile/avatar', requireSupabaseUser, avatarUpload.single('avatar'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'avatar file is required' });
+
+  const user = req.supabaseUser;
+  const ext = path.extname(req.file.originalname || '').toLowerCase() || '.jpg';
+  const objectPath = `${user.id}/${Date.now()}${ext}`;
+
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from(SUPABASE_STORAGE_BUCKET)
+    .upload(objectPath, req.file.buffer, {
+      contentType: req.file.mimetype,
+      upsert: true
+    });
+
+  if (uploadError) return res.status(400).json({ error: uploadError.message });
+
+  const { data: publicData } = supabaseAdmin.storage
+    .from(SUPABASE_STORAGE_BUCKET)
+    .getPublicUrl(objectPath);
+
+  const avatarUrl = publicData?.publicUrl || null;
+  const { data, error } = await supabaseAdmin
+    .from('profiles')
+    .upsert({ id: user.id, email: user.email, avatar_url: avatarUrl })
+    .select('*')
+    .single();
+
+  if (error) return res.status(400).json({ error: error.message });
+
+  return res.json({ avatarUrl, profile: data });
 });
 
 app.get('/api/songs', (req, res) => {

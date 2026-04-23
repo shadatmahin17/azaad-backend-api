@@ -10,6 +10,11 @@ This repository includes two frontend options:
 - `GET /api/songs`
 - `POST /api/songs` (requires `x-api-key`)
 - `DELETE /api/songs/:id` (requires `x-api-key`)
+- `POST /api/auth/signup`
+- `POST /api/auth/signin`
+- `GET /api/profile-view` (requires `Authorization: Bearer <access_token>`)
+- `PUT /api/profile` (requires `Authorization: Bearer <access_token>`)
+- `POST /api/profile/avatar` (multipart/form-data, requires `Authorization: Bearer <access_token>`)
 
 Uploads are stored in `uploads/` and song metadata is stored in `data/songs.json`.
 
@@ -76,3 +81,15 @@ If not set, backend defaults to:
 - password: `mahin@2026*`
 
 If you send `s3://bucket/key` in `audioUrl` or `coverUrl`, the API now normalizes it to a browser-friendly HTTPS URL. Set `AWS_REGION` (or `S3_REGION`) so generated URLs use the correct regional endpoint.
+
+
+## Supabase setup
+1. Copy `.env.example` to `.env` and add your Supabase values.
+2. Install server dependencies including Supabase SDK: `npm install @supabase/supabase-js dotenv`.
+3. Run `supabase/schema.sql` in Supabase SQL editor to create the `profiles` table and policies.
+4. In Supabase Auth, enable Email/Password provider.
+5. Send the returned `accessToken` from `/api/auth/signin` as `Authorization: Bearer <token>` when calling profile endpoints.
+
+### Notes
+- `profile-view` always returns the user email from Supabase Auth (`auth.users`) so your profile screen can show email directly from Supabase.
+- Avatar uploads are stored in Supabase Storage bucket `avatars` and the public URL is saved in `profiles.avatar_url`.

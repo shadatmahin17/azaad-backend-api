@@ -625,28 +625,6 @@ button:disabled { opacity: 0.7; cursor: not-allowed; }
   transform: translateY(-1px);
   box-shadow: 0 8px 16px rgba(22, 132, 84, 0.2);
 }
-
-.supabase-account {
-  border: 1px solid #d9e6ff;
-  background: linear-gradient(180deg, #f8fbff 0%, #f2f7ff 100%);
-}
-
-.supabase-account-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.75rem;
-}
-
-.supabase-account-head h4 {
-  margin: 0;
-  color: #153f8a;
-}
-
-.supabase-account input[readonly] {
-  background: #eef3ff;
-  color: #2d3a56;
-}
 @media (max-width: 1050px) {
   #dashboardView { grid-template-columns: 1fr; }
   .sidebar { grid-template-columns: 1fr; }

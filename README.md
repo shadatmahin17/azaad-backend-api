@@ -12,7 +12,6 @@ This repository includes two frontend options:
 - `DELETE /api/songs/:id` (requires `x-api-key`)
 - `POST /api/auth/signup`
 - `POST /api/auth/signin`
-- `PUT /api/auth/change-password` (requires `Authorization: Bearer <access_token>`)
 - `POST /api/login` (admin username/password OR Supabase email/password)
 - `GET /api/profile-view` (requires `Authorization: Bearer <access_token>`)
 - `PUT /api/profile` (requires `Authorization: Bearer <access_token>`)
@@ -95,6 +94,4 @@ If you send `s3://bucket/key` in `audioUrl` or `coverUrl`, the API now normalize
 
 ### Notes
 - `profile-view` always returns the user email from Supabase Auth (`auth.users`) so your profile screen can show email directly from Supabase.
-- `signin` and `login` now return a `profile` object with `email`, `full_name`, `avatar_url`, and masked `password` (`********`) for the logged in user.
-- Password change is supported through `PUT /api/auth/change-password` with `{ "currentPassword": "...", "newPassword": "..." }`.
 - Avatar uploads are stored in Supabase Storage bucket `avatars` and the public URL is saved in `profiles.avatar_url`.

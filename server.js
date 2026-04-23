@@ -94,20 +94,6 @@ function createSupabaseAuthFallback(url, apiKey) {
         } catch (error) {
           return { data: null, error: { message: error.message || 'Unable to reach Supabase Auth API' } };
         }
-      },
-      async updateUser(token, updates) {
-        try {
-          const response = await fetch(`${url}/auth/v1/user`, {
-            method: 'PUT',
-            headers: authHeaders(token),
-            body: JSON.stringify(updates || {})
-          });
-          const { data, error } = await parseResponse(response);
-          if (error) return { data: null, error };
-          return { data: { user: data }, error: null };
-        } catch (error) {
-          return { data: null, error: { message: error.message || 'Unable to reach Supabase Auth API' } };
-        }
       }
     },
     storage: null
@@ -278,34 +264,6 @@ function normalizeCategory(value) {
   return match || 'Other';
 }
 
-async function findProfileConflict({ userId, email, fullName, avatarUrl }) {
-  if (!hasSupabaseDataApi) return null;
-
-  const checks = [
-    { column: 'email', value: email, message: 'Email already in use' },
-    { column: 'full_name', value: fullName, message: 'Name already in use' },
-    { column: 'avatar_url', value: avatarUrl, message: 'Avatar image already in use' }
-  ];
-
-  for (const check of checks) {
-    const value = typeof check.value === 'string' ? check.value.trim() : '';
-    if (!value) continue;
-    const { data, error } = await supabaseAdmin
-      .from('profiles')
-      .select('id')
-      .eq(check.column, value)
-      .neq('id', userId)
-      .limit(1);
-
-    if (error) return { message: error.message, code: 500 };
-    if (Array.isArray(data) && data.length > 0) {
-      return { message: check.message, code: 409 };
-    }
-  }
-
-  return null;
-}
-
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     if (file.fieldname === 'audio') return cb(null, AUDIO_DIR);
@@ -342,7 +300,6 @@ app.get('/api', (req, res) => {
       delete: 'DELETE /api/songs/:id',
       signup: 'POST /api/auth/signup',
       signin: 'POST /api/auth/signin',
-      changePassword: 'PUT /api/auth/change-password',
       profile: 'GET /api/profile-view'
     }
   });
@@ -358,9 +315,6 @@ app.post('/api/auth/signup', async (req, res) => {
   if (!email || !password) {
     return res.status(400).json({ error: 'email and password are required' });
   }
-  if (!fullName) {
-    return res.status(400).json({ error: 'fullName is required' });
-  }
 
   const { data, error } = await supabaseAdmin.auth.signUp({
     email,
@@ -375,11 +329,6 @@ app.post('/api/auth/signup', async (req, res) => {
   if (error) return res.status(400).json({ error: error.message });
 
   if (data?.user) {
-    const conflict = await findProfileConflict({ userId: data.user.id, email, fullName });
-    if (conflict) {
-      return res.status(conflict.code).json({ error: conflict.message });
-    }
-
     await supabaseAdmin.from('profiles').upsert({
       id: data.user.id,
       email: data.user.email,
@@ -409,28 +358,11 @@ app.post('/api/auth/signin', async (req, res) => {
     return res.status(401).json({ error: error?.message || 'Invalid login credentials' });
   }
 
-  let profile = null;
-  if (hasSupabaseDataApi && data?.user?.id) {
-    const { data: profileRow } = await supabaseAdmin
-      .from('profiles')
-      .select('full_name, avatar_url, email')
-      .eq('id', data.user.id)
-      .maybeSingle();
-
-    profile = {
-      email: profileRow?.email || data.user.email || email,
-      full_name: profileRow?.full_name || data.user.user_metadata?.full_name || '',
-      avatar_url: profileRow?.avatar_url || null,
-      password: '********'
-    };
-  }
-
   return res.json({
     accessToken: data.session.access_token,
     refreshToken: data.session.refresh_token,
     user: data.user,
-    expiresAt: data.session.expires_at,
-    profile
+    expiresAt: data.session.expires_at
   });
 });
 
@@ -447,11 +379,9 @@ app.get('/api/profile-view', requireSupabaseUser, async (req, res) => {
     id: user.id,
     email: user.email,
     profile: {
-      email: profile?.email || user.email,
       full_name: profile?.full_name || user.user_metadata?.full_name || '',
       avatar_url: profile?.avatar_url || null,
-      bio: profile?.bio || '',
-      password: '********'
+      bio: profile?.bio || ''
     }
   });
 });
@@ -461,10 +391,6 @@ app.put('/api/profile', requireSupabaseUser, async (req, res) => {
   const user = req.supabaseUser;
   const fullName = typeof req.body?.fullName === 'string' ? req.body.fullName.trim() : null;
   const bio = typeof req.body?.bio === 'string' ? req.body.bio.trim() : null;
-  const conflict = await findProfileConflict({ userId: user.id, email: user.email, fullName: fullName || '' });
-  if (conflict) {
-    return res.status(conflict.code).json({ error: conflict.message });
-  }
 
   const payload = {
     id: user.id,
@@ -508,11 +434,6 @@ app.post('/api/profile/avatar', requireSupabaseUser, avatarUpload.single('avatar
     .getPublicUrl(objectPath);
 
   const avatarUrl = publicData?.publicUrl || null;
-  const conflict = await findProfileConflict({ userId: user.id, avatarUrl });
-  if (conflict) {
-    return res.status(conflict.code).json({ error: conflict.message });
-  }
-
   const { data, error } = await supabaseAdmin
     .from('profiles')
     .upsert({ id: user.id, email: user.email, avatar_url: avatarUrl })
@@ -522,35 +443,6 @@ app.post('/api/profile/avatar', requireSupabaseUser, avatarUpload.single('avatar
   if (error) return res.status(400).json({ error: error.message });
 
   return res.json({ avatarUrl, profile: data });
-});
-
-app.put('/api/auth/change-password', requireSupabaseUser, async (req, res) => {
-  if (!ensureSupabaseReady(res)) return;
-
-  const currentPassword = typeof req.body?.currentPassword === 'string' ? req.body.currentPassword : '';
-  const newPassword = typeof req.body?.newPassword === 'string' ? req.body.newPassword : '';
-
-  if (!currentPassword || !newPassword) {
-    return res.status(400).json({ error: 'currentPassword and newPassword are required' });
-  }
-
-  const { data: verifyData, error: verifyError } = await supabaseAdmin.auth.signInWithPassword({
-    email: req.supabaseUser.email,
-    password: currentPassword
-  });
-  if (verifyError || !verifyData?.session) {
-    return res.status(401).json({ error: 'Current password is incorrect' });
-  }
-
-  const { error: updateError } = await supabaseAdmin.auth.updateUser(req.supabaseAccessToken, {
-    password: newPassword
-  });
-
-  if (updateError) {
-    return res.status(400).json({ error: updateError.message });
-  }
-
-  return res.json({ message: 'Password changed successfully' });
 });
 
 app.get('/api/songs', (req, res) => {
@@ -586,21 +478,6 @@ app.post('/api/login', async (req, res) => {
     });
 
     if (!error && data?.session) {
-      let profile = null;
-      if (hasSupabaseDataApi && data?.user?.id) {
-        const { data: profileRow } = await supabaseAdmin
-          .from('profiles')
-          .select('email, full_name, avatar_url')
-          .eq('id', data.user.id)
-          .maybeSingle();
-        profile = {
-          email: profileRow?.email || data.user.email || identifier,
-          full_name: profileRow?.full_name || data.user.user_metadata?.full_name || '',
-          avatar_url: profileRow?.avatar_url || null,
-          password: '********'
-        };
-      }
-
       return res.json({
         ok: true,
         mode: 'supabase',
@@ -608,8 +485,7 @@ app.post('/api/login', async (req, res) => {
         accessToken: data.session.access_token,
         refreshToken: data.session.refresh_token,
         expiresAt: data.session.expires_at,
-        user: data.user,
-        profile
+        user: data.user
       });
     }
   }

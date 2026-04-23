@@ -54,13 +54,6 @@ const removeAvatarBtn = document.getElementById('removeAvatarBtn');
 const siteNameDisplay = document.getElementById('siteNameDisplay');
 const headerTrackCount = document.getElementById('headerTrackCount');
 const headerCategoryCount = document.getElementById('headerCategoryCount');
-const supabaseEmailInput = document.getElementById('supabaseEmail');
-const supabaseFullNameInput = document.getElementById('supabaseFullName');
-const supabasePasswordInput = document.getElementById('supabasePassword');
-const supabaseAvatarUrlInput = document.getElementById('supabaseAvatarUrl');
-const changePasswordForm = document.getElementById('changePasswordForm');
-const currentPasswordInput = document.getElementById('currentPasswordInput');
-const newPasswordInput = document.getElementById('newPasswordInput');
 
 const MAIN_LOGO_SOURCE = '/img/Black-Logo.png';
 function normalizeS3Url(url) {
@@ -95,7 +88,6 @@ const DEFAULT_BRANDING = {
 };
 
 let songs = [];
-let supabaseProfile = null;
 
 function firstNonEmptyString(...values) {
   for (const value of values) {
@@ -160,36 +152,6 @@ function renderOverview() {
 
 function getApiKey() {
   return localStorage.getItem('azaad_api_key') || '';
-}
-
-function getSupabaseAccessToken() {
-  return localStorage.getItem('azaad_access_token') || '';
-}
-
-function setSupabaseSession(accessToken = '', refreshToken = '') {
-  if (accessToken) {
-    localStorage.setItem('azaad_access_token', accessToken);
-  } else {
-    localStorage.removeItem('azaad_access_token');
-  }
-  if (refreshToken) {
-    localStorage.setItem('azaad_refresh_token', refreshToken);
-  } else {
-    localStorage.removeItem('azaad_refresh_token');
-  }
-}
-
-function setSupabaseProfile(profile) {
-  supabaseProfile = profile && typeof profile === 'object' ? profile : null;
-  const email = supabaseProfile?.email || '';
-  const fullName = supabaseProfile?.full_name || '';
-  const maskedPassword = supabaseProfile?.password || '';
-  const avatarUrl = supabaseProfile?.avatar_url || '';
-
-  if (supabaseEmailInput) supabaseEmailInput.value = email;
-  if (supabaseFullNameInput) supabaseFullNameInput.value = fullName;
-  if (supabasePasswordInput) supabasePasswordInput.value = maskedPassword;
-  if (supabaseAvatarUrlInput) supabaseAvatarUrlInput.value = avatarUrl;
 }
 
 function setLoginError(message = '') {
@@ -257,54 +219,22 @@ function updateSidebarLogo() {
 
 function applyBrandingToUI() {
   const branding = getBranding();
-  const resolvedName = firstNonEmptyString(supabaseProfile?.full_name, branding.adminName);
-  const resolvedEmail = firstNonEmptyString(supabaseProfile?.email, branding.adminEmail);
-  const resolvedAvatar = firstNonEmptyString(supabaseProfile?.avatar_url, branding.adminPhoto);
   siteNameEl.textContent = branding.siteName;
   if (siteNameDisplay) siteNameDisplay.textContent = `${branding.siteName} Dashboard`;
   updateSidebarLogo();
-  headerAdminName.textContent = resolvedName;
-  headerAdminEmail.textContent = resolvedEmail;
-  headerAvatar.src = resolvedAvatar;
-  profileAvatarPreview.src = resolvedAvatar;
-  if (profileHeroAvatar) profileHeroAvatar.src = resolvedAvatar;
-  if (profileHeroName) profileHeroName.textContent = resolvedName;
-  if (profileHeroEmail) profileHeroEmail.textContent = resolvedEmail;
+  headerAdminName.textContent = branding.adminName;
+  headerAdminEmail.textContent = branding.adminEmail;
+  headerAvatar.src = branding.adminPhoto;
+  profileAvatarPreview.src = branding.adminPhoto;
+  if (profileHeroAvatar) profileHeroAvatar.src = branding.adminPhoto;
+  if (profileHeroName) profileHeroName.textContent = branding.adminName;
+  if (profileHeroEmail) profileHeroEmail.textContent = branding.adminEmail;
   if (profileHeroBio) profileHeroBio.textContent = branding.bio;
 
   profileForm.adminName.value = branding.adminName;
   profileForm.adminEmail.value = branding.adminEmail;
   profileForm.adminPhoto.value = branding.adminPhoto;
   profileForm.bio.value = branding.bio;
-}
-
-async function loadSupabaseProfile() {
-  const token = getSupabaseAccessToken();
-  if (!token) {
-    setSupabaseProfile(null);
-    return;
-  }
-
-  try {
-    const response = await fetch('/api/profile-view', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || 'Unable to load Supabase profile');
-
-    setSupabaseProfile({
-      email: data?.profile?.email || data?.email || '',
-      full_name: data?.profile?.full_name || '',
-      avatar_url: data?.profile?.avatar_url || '',
-      password: data?.profile?.password || '********'
-    });
-  } catch (error) {
-    setStatus(`Supabase profile warning: ${error.message}`, 'error');
-    setSupabaseSession('', '');
-    setSupabaseProfile(null);
-  } finally {
-    applyBrandingToUI();
-  }
 }
 
 function readFileAsDataUrl(file) {
@@ -526,8 +456,6 @@ loginForm.addEventListener('submit', async (event) => {
 
     localStorage.setItem('azaad_api_key', key);
     localStorage.setItem('azaad_admin_username', username);
-    setSupabaseSession(String(loginData.accessToken || ''), String(loginData.refreshToken || ''));
-    setSupabaseProfile(loginData.profile || null);
     setAuthView(true);
     loginForm.reset();
     setLoginError('');
@@ -543,8 +471,6 @@ loginForm.addEventListener('submit', async (event) => {
 logoutBtn.addEventListener('click', () => {
   localStorage.removeItem('azaad_api_key');
   localStorage.removeItem('azaad_admin_username');
-  setSupabaseSession('', '');
-  setSupabaseProfile(null);
   setAuthView(false);
   setLoginError('');
   setStatus('Logged out.', 'ok');
@@ -695,39 +621,6 @@ removeAvatarBtn?.addEventListener('click', () => {
   setStatus('Avatar reset to default.', 'ok');
 });
 
-changePasswordForm?.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const token = getSupabaseAccessToken();
-  const currentPassword = currentPasswordInput?.value || '';
-  const newPassword = newPasswordInput?.value || '';
-
-  if (!token) {
-    setStatus('Email/Supabase login required before changing password.', 'error');
-    return;
-  }
-  if (!currentPassword || !newPassword) {
-    setStatus('Both current and new password are required.', 'error');
-    return;
-  }
-
-  try {
-    const response = await fetch('/api/auth/change-password', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({ currentPassword, newPassword })
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || 'Unable to change password');
-    setStatus(data.message || 'Password changed successfully.', 'ok');
-    changePasswordForm.reset();
-  } catch (error) {
-    setStatus(`Password change failed: ${error.message}`, 'error');
-  }
-});
-
 async function init() {
   const key = getApiKey();
   let loggedIn = Boolean(key);
@@ -749,7 +642,6 @@ async function init() {
 
   setAuthView(loggedIn);
   switchView('dashboard');
-  await loadSupabaseProfile();
   applyBrandingToUI();
   if (loggedIn) loadSongs();
 }

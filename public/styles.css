@@ -373,6 +373,81 @@ button:disabled { opacity: 0.7; cursor: not-allowed; }
 
 .grid2 { display: grid; gap: 0.75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .full { grid-column: 1 / -1; }
+.upload-form { gap: 1rem; }
+.upload-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+  padding: 0.95rem 1rem;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(13, 111, 69, 0.14) 0%, rgba(255, 255, 255, 0.52) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+}
+.upload-kicker {
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-size: 0.72rem;
+  color: #14583a;
+  font-weight: 700;
+}
+.upload-hero h3 {
+  margin: 0 0 0.24rem;
+  font-size: 1.15rem;
+  color: #102437;
+}
+.upload-tip {
+  border: 1px solid #d5e5dc;
+  background: #fff;
+  border-radius: 999px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.78rem;
+  color: #3f4a58;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.upload-section {
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.8rem;
+  display: grid;
+  gap: 0.8rem;
+}
+.section-title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #4a5a6b;
+  display: inline-flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+.upload-file {
+  border: 1px dashed #aec6b9;
+  background: rgba(13, 111, 69, 0.04);
+}
+.upload-file span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+.upload-file small {
+  display: block;
+  color: #73808d;
+  margin: 0.15rem 0 0.45rem;
+  font-size: 0.77rem;
+}
+.upload-flags {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+}
 .check {
   display: flex;
   gap: 0.5rem;
@@ -381,7 +456,11 @@ button:disabled { opacity: 0.7; cursor: not-allowed; }
   border-radius: 12px;
   padding: 0.6rem;
   background: #fdfefe;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
+.check:hover { border-color: #c8dbd1; background: #f7fbf9; }
+.check input { width: auto; }
 
 .song-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.65rem; }
 .song-list li {
@@ -611,6 +690,12 @@ button:disabled { opacity: 0.7; cursor: not-allowed; }
   .kpi-grid { grid-template-columns: 1fr; }
   .bar-chart { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .profile-layout { grid-template-columns: 1fr; }
+  .upload-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .upload-tip { white-space: normal; }
+  .upload-flags { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .profile-hero {
     grid-template-columns: 1fr;
     text-align: center;

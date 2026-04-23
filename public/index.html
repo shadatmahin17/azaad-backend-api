@@ -51,7 +51,7 @@
   </aside>
 
   <main class="main">
-    <section class="top-utility panel">
+    <section id="topUtilityBar" class="top-utility panel">
       <div class="search-wrapper quick-search">
         <i class="fas fa-search"></i>
         <input id="globalSearchInput" type="text" placeholder="Search tracks by name" />
@@ -143,34 +143,65 @@
     </section>
 
     <section id="uploadView" class="panel hidden">
-      <form id="uploadForm" class="stack" enctype="multipart/form-data">
-        <div class="grid2">
-          <label><i class="fas fa-heading"></i> Title <input type="text" name="title" required /></label>
-          <label><i class="fas fa-user"></i> Artist <input type="text" name="artist" required /></label>
-          <label><i class="fas fa-microphone"></i> Singer(s) <input type="text" name="singers" placeholder="Singer names" /></label>
-          <label><i class="fas fa-tag"></i> Category
-            <select name="category">
-              <option value="Hindi">Hindi</option>
-              <option value="Bangla">Bangla</option>
-              <option value="English">English</option>
-              <option value="Nasheed">Nasheed</option>
-              <option value="Sura">Sura</option>
-              <option value="Other" selected>Other</option>
-            </select>
-          </label>
-          <label><i class="fas fa-guitar"></i> Genre <input type="text" name="genre" placeholder="Genre" /></label>
-          <label><i class="fas fa-bolt"></i> Vibe <input type="text" name="vibe" placeholder="Vibe" /></label>
-          <label><i class="fas fa-file-audio"></i> Audio File <input id="audioInput" type="file" name="audio" accept="audio/*" /></label>
-          <label><i class="fas fa-image"></i> Cover File <input id="coverInput" type="file" name="cover" accept="image/*" /></label>
-          <label><i class="fas fa-link"></i> Audio URL (optional) <input type="url" name="audioUrl" placeholder="https://.../track.mp3" /></label>
-          <label><i class="fas fa-link"></i> Cover URL (optional) <input type="url" name="coverUrl" placeholder="https://.../cover.jpg" /></label>
+      <form id="uploadForm" class="stack upload-form" enctype="multipart/form-data">
+        <article class="upload-hero">
+          <div>
+            <p class="upload-kicker"><i class="fas fa-cloud-upload-alt"></i> Upload Center</p>
+            <h3>Publish your next track</h3>
+            <p class="muted">Add title, metadata, and media from files or direct URLs. Audio and cover are both required.</p>
+          </div>
+          <span class="upload-tip"><i class="fas fa-lightbulb"></i> You can mix file + URL inputs.</span>
+        </article>
+
+        <div class="upload-section">
+          <p class="section-title"><i class="fas fa-info-circle"></i> Song Information</p>
+          <div class="grid2">
+            <label><i class="fas fa-heading"></i> Title <input type="text" name="title" required /></label>
+            <label><i class="fas fa-user"></i> Artist <input type="text" name="artist" required /></label>
+            <label><i class="fas fa-microphone"></i> Singer(s) <input type="text" name="singers" placeholder="Singer names" /></label>
+            <label><i class="fas fa-tag"></i> Category
+              <select name="category">
+                <option value="Hindi">Hindi</option>
+                <option value="Bangla">Bangla</option>
+                <option value="English">English</option>
+                <option value="Nasheed">Nasheed</option>
+                <option value="Sura">Sura</option>
+                <option value="Other" selected>Other</option>
+              </select>
+            </label>
+            <label><i class="fas fa-guitar"></i> Genre <input type="text" name="genre" placeholder="Genre" /></label>
+            <label><i class="fas fa-bolt"></i> Vibe <input type="text" name="vibe" placeholder="Vibe" /></label>
+          </div>
         </div>
-        <div class="grid2">
-          <label class="check"><input type="checkbox" name="featured" /> <i class="fas fa-star"></i> Featured</label>
-          <label class="check"><input type="checkbox" name="trending" /> <i class="fas fa-fire"></i> Trending</label>
-          <label class="check"><input type="checkbox" name="newSong" /> <i class="fas fa-music"></i> New song</label>
-          <label class="check"><input type="checkbox" name="oldSong" /> <i class="fas fa-clock"></i> Old song</label>
+
+        <div class="upload-section">
+          <p class="section-title"><i class="fas fa-photo-video"></i> Media Sources</p>
+          <div class="grid2">
+            <label class="upload-file">
+              <span><i class="fas fa-file-audio"></i> Audio File</span>
+              <small>Choose MP3, WAV, or M4A</small>
+              <input id="audioInput" type="file" name="audio" accept="audio/*" />
+            </label>
+            <label class="upload-file">
+              <span><i class="fas fa-image"></i> Cover File</span>
+              <small>Choose JPG, PNG, or WEBP</small>
+              <input id="coverInput" type="file" name="cover" accept="image/*" />
+            </label>
+            <label><i class="fas fa-link"></i> Audio URL (optional) <input type="url" name="audioUrl" placeholder="https://.../track.mp3" /></label>
+            <label><i class="fas fa-link"></i> Cover URL (optional) <input type="url" name="coverUrl" placeholder="https://.../cover.jpg" /></label>
+          </div>
         </div>
+
+        <div class="upload-section">
+          <p class="section-title"><i class="fas fa-sliders-h"></i> Track Flags</p>
+          <div class="grid2 upload-flags">
+            <label class="check"><input type="checkbox" name="featured" /> <i class="fas fa-star"></i> Featured</label>
+            <label class="check"><input type="checkbox" name="trending" /> <i class="fas fa-fire"></i> Trending</label>
+            <label class="check"><input type="checkbox" name="newSong" /> <i class="fas fa-music"></i> New song</label>
+            <label class="check"><input type="checkbox" name="oldSong" /> <i class="fas fa-clock"></i> Old song</label>
+          </div>
+        </div>
+
         <button id="submitUpload" type="submit"><i class="fas fa-upload"></i> Upload track</button>
       </form>
     </section>

@@ -176,9 +176,19 @@
 
     <section id="profileView" class="panel hidden">
       <form id="profileForm" class="stack">
-        <div class="profile-card">
-          <img id="profileAvatarPreview" class="avatar-lg" alt="Avatar" />
-          <label><i class="fas fa-link"></i> Avatar URL <input name="adminPhoto" type="url" placeholder="https://..." /></label>
+        <div class="profile-layout">
+          <div class="profile-card">
+            <img id="profileAvatarPreview" class="avatar-xl" alt="Avatar preview" />
+            <div class="avatar-actions">
+              <label class="avatar-upload" for="avatarUploadInput">
+                <i class="fas fa-cloud-upload-alt"></i> Upload avatar
+              </label>
+              <input id="avatarUploadInput" name="avatarUploadInput" type="file" accept="image/*" hidden />
+              <button id="removeAvatarBtn" type="button" class="secondary"><i class="fas fa-eraser"></i> Remove</button>
+              <small>Stored in your browser localStorage.</small>
+            </div>
+          </div>
+          <label><i class="fas fa-link"></i> Avatar URL fallback <input name="adminPhoto" type="url" placeholder="https://..." /></label>
         </div>
         <div class="grid2">
           <label><i class="fas fa-globe"></i> Site Name <input name="siteName" type="text" required /></label>

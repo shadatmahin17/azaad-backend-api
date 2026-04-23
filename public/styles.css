@@ -43,11 +43,35 @@ h1, h2, h3, p { margin: 0; }
 
 .auth-card {
   width: min(440px, 100%);
-  background: #fff;
-  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.9);
   border-radius: 20px;
   padding: 1.35rem;
-  box-shadow: 0 20px 50px rgba(26, 29, 32, 0.08);
+  box-shadow: 0 20px 50px rgba(26, 29, 32, 0.18);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+#loginView .auth-card {
+  display: grid;
+  gap: 0.85rem;
+}
+
+#loginView h1 {
+  font-size: clamp(1.35rem, 2vw, 1.65rem);
+}
+
+#loginView .muted {
+  margin-top: 0;
+  line-height: 1.45;
+}
+
+.logo-lg {
+  width: min(190px, 65%);
+  height: auto;
+  margin: 0 auto 0.15rem;
+  display: block;
+  object-fit: contain;
 }
 
 .chip {
@@ -422,10 +446,71 @@ button:disabled { opacity: 0.7; cursor: not-allowed; }
 }
 
 @media (max-width: 700px) {
+  body { background-attachment: scroll; }
+  .center-screen { padding: 0.75rem; }
+  .auth-card { width: 100%; padding: 1rem; border-radius: 16px; }
   .grid2 { grid-template-columns: 1fr; }
-  .panel-head, .header, .top-utility { flex-direction: column; align-items: flex-start; }
-  .song-list li { flex-direction: column; align-items: flex-start; }
+
+  #dashboardView {
+    padding: 0.55rem;
+    gap: 0.55rem;
+  }
+
+  .sidebar {
+    border-radius: 14px;
+    padding: 0.75rem;
+    gap: 0.6rem;
+  }
+
+  .main { gap: 0.55rem; }
+  .panel { padding: 0.8rem; border-radius: 14px; }
+  .status { padding: 0.7rem 0.8rem; }
+
+  .panel-head,
+  .header,
+  .top-utility,
+  .song-list li {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .search-wrapper,
+  .quick-search,
+  .inline-actions,
+  .header-right,
+  .header-badges,
+  .header-actions,
+  .utility-actions {
+    width: 100%;
+    max-width: none;
+    justify-content: flex-start;
+  }
+
+  .header-right { justify-items: start; }
+  .inline-actions { gap: 0.45rem; }
+  .inline-actions .count { width: 100%; }
+  .inline-actions button { width: 100%; }
+
+  .top-utility .icon-btn {
+    width: 38px;
+    height: 38px;
+  }
+
+  .song-list li { gap: 0.55rem; }
+  .song-meta { width: 100%; }
+  .song-actions { width: 100%; }
+
   .kpi-grid { grid-template-columns: 1fr; }
   .bar-chart { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .header-right, .header-badges, .header-actions { width: 100%; justify-content: flex-start; }
+}
+
+@media (max-width: 480px) {
+  .auth-card { padding: 0.85rem; }
+  #loginView h1 { font-size: 1.2rem; }
+  .logo-lg { width: min(170px, 75%); }
+  .header-main h2 { font-size: 1.35rem; }
+  .panel { padding: 0.72rem; }
+  .song-meta img,
+  .song-cover-fallback { width: 44px; height: 44px; }
+  .bar-chart { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }

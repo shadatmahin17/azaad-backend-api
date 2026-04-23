@@ -43,11 +43,35 @@ h1, h2, h3, p { margin: 0; }
 
 .auth-card {
   width: min(440px, 100%);
-  background: #fff;
-  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.9);
   border-radius: 20px;
   padding: 1.35rem;
-  box-shadow: 0 20px 50px rgba(26, 29, 32, 0.08);
+  box-shadow: 0 20px 50px rgba(26, 29, 32, 0.18);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+#loginView .auth-card {
+  display: grid;
+  gap: 0.85rem;
+}
+
+#loginView h1 {
+  font-size: clamp(1.35rem, 2vw, 1.65rem);
+}
+
+#loginView .muted {
+  margin-top: 0;
+  line-height: 1.45;
+}
+
+.logo-lg {
+  width: min(190px, 65%);
+  height: auto;
+  margin: 0 auto 0.15rem;
+  display: block;
+  object-fit: contain;
 }
 
 .chip {

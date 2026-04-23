@@ -42,6 +42,12 @@ const headerAdminName = document.getElementById('headerAdminName');
 const headerAdminEmail = document.getElementById('headerAdminEmail');
 const headerAvatar = document.getElementById('headerAvatar');
 const profileAvatarPreview = document.getElementById('profileAvatarPreview');
+const profileHeroAvatar = document.getElementById('profileHeroAvatar');
+const profileHeroName = document.getElementById('profileHeroName');
+const profileHeroEmail = document.getElementById('profileHeroEmail');
+const profileHeroBio = document.getElementById('profileHeroBio');
+const profileTrackBadge = document.getElementById('profileTrackBadge');
+const profileCategoryBadge = document.getElementById('profileCategoryBadge');
 const avatarUploadInput = document.getElementById('avatarUploadInput');
 const removeAvatarBtn = document.getElementById('removeAvatarBtn');
 const siteNameDisplay = document.getElementById('siteNameDisplay');
@@ -219,6 +225,10 @@ function applyBrandingToUI() {
   headerAdminEmail.textContent = branding.adminEmail;
   headerAvatar.src = branding.adminPhoto;
   profileAvatarPreview.src = branding.adminPhoto;
+  if (profileHeroAvatar) profileHeroAvatar.src = branding.adminPhoto;
+  if (profileHeroName) profileHeroName.textContent = branding.adminName;
+  if (profileHeroEmail) profileHeroEmail.textContent = branding.adminEmail;
+  if (profileHeroBio) profileHeroBio.textContent = branding.bio;
 
   profileForm.adminName.value = branding.adminName;
   profileForm.adminEmail.value = branding.adminEmail;
@@ -419,6 +429,8 @@ async function loadSongs() {
     countBadge.innerHTML = `<i class="fas fa-headphones"></i> ${songs.length} track${songs.length !== 1 ? 's' : ''}`;
     if (headerTrackCount) headerTrackCount.innerHTML = `<i class="fas fa-headphones"></i> ${songs.length} Tracks`;
     if (headerCategoryCount) headerCategoryCount.innerHTML = `<i class="fas fa-layer-group"></i> ${uniqueCategories.size} Categories`;
+    if (profileTrackBadge) profileTrackBadge.innerHTML = `<i class="fas fa-headphones"></i> ${songs.length} Tracks`;
+    if (profileCategoryBadge) profileCategoryBadge.innerHTML = `<i class="fas fa-layer-group"></i> ${uniqueCategories.size} Categories`;
     renderOverview();
     applySearch();
   } catch (error) {

@@ -426,9 +426,15 @@ button:disabled { opacity: 0.7; cursor: not-allowed; }
 }
 .empty { justify-content: center; color: #7c8791; }
 
+.profile-shell {
+  background: linear-gradient(135deg, #f9fffc 0%, #f4f7ff 100%);
+  border: 1px solid #e2e9f2;
+  border-radius: 18px;
+  padding: 1rem;
+}
 .profile-layout {
   display: grid;
-  grid-template-columns: minmax(220px, 300px) minmax(240px, 1fr);
+  grid-template-columns: minmax(220px, 360px) minmax(180px, 1fr);
   gap: 0.85rem;
   align-items: stretch;
 }
@@ -437,23 +443,37 @@ button:disabled { opacity: 0.7; cursor: not-allowed; }
   display: flex;
   gap: 0.75rem;
   align-items: center;
-  background: #fcfdfd;
-  border: 1px solid #e6ebef;
-  border-radius: 14px;
-  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #dfe8f2;
+  border-radius: 16px;
+  padding: 0.9rem;
   flex-wrap: wrap;
+  box-shadow: 0 10px 24px rgba(16, 32, 58, 0.07);
 }
 .avatar-xl {
   width: 92px;
   height: 92px;
-  border-radius: 18px;
+  border-radius: 24px;
   object-fit: cover;
-  border: 1px solid #dce3ea;
+  border: 2px solid #d6efe2;
   background: #f5f7fa;
 }
 .avatar-actions {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.55rem;
+}
+.avatar-actions p {
+  margin: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+.avatar-actions p strong {
+  font-size: 0.92rem;
+  color: #152238;
+}
+.avatar-actions p span {
+  color: #667487;
+  font-size: 0.8rem;
 }
 .avatar-upload {
   display: inline-flex;
@@ -461,13 +481,30 @@ button:disabled { opacity: 0.7; cursor: not-allowed; }
   justify-content: center;
   gap: 6px;
   border-radius: 999px;
-  border: 1px dashed #1d7f55;
-  background: #ecf8f1;
+  border: 1px solid #1d7f55;
+  background: linear-gradient(180deg, #e9faef 0%, #def5e8 100%);
   color: #0d633f;
   font-weight: 700;
   padding: 0.45rem 0.8rem;
   cursor: pointer;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+}
+.avatar-upload:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(22, 132, 84, 0.2);
+}
+.profile-fields h3 {
+  margin: 0 0 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #1b2b44;
+}
+.profile-fields p {
+  margin: 0;
+  color: #667487;
+  font-size: 0.88rem;
 }
 
 @media (max-width: 1050px) {

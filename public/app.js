@@ -41,6 +41,8 @@ const headerAdminName = document.getElementById('headerAdminName');
 const headerAdminEmail = document.getElementById('headerAdminEmail');
 const headerAvatar = document.getElementById('headerAvatar');
 const profileAvatarPreview = document.getElementById('profileAvatarPreview');
+const avatarUploadInput = document.getElementById('avatarUploadInput');
+const removeAvatarBtn = document.getElementById('removeAvatarBtn');
 const siteNameDisplay = document.getElementById('siteNameDisplay');
 const headerTrackCount = document.getElementById('headerTrackCount');
 const headerCategoryCount = document.getElementById('headerCategoryCount');
@@ -217,12 +219,19 @@ function applyBrandingToUI() {
   headerAvatar.src = branding.adminPhoto;
   profileAvatarPreview.src = branding.adminPhoto;
 
-  profileForm.siteName.value = branding.siteName;
-  profileForm.logoImage.value = branding.logoImage || '';
   profileForm.adminName.value = branding.adminName;
   profileForm.adminEmail.value = branding.adminEmail;
   profileForm.adminPhoto.value = branding.adminPhoto;
   profileForm.bio.value = branding.bio;
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Unable to read selected image.'));
+    reader.readAsDataURL(file);
+  });
 }
 
 function setStatus(message, type = 'info') {
@@ -557,16 +566,45 @@ uploadForm.addEventListener('submit', async (event) => {
 profileForm.addEventListener('submit', (event) => {
   event.preventDefault();
   const fields = new FormData(profileForm);
+  const avatarValue = String(fields.get('adminPhoto') || '').trim();
 
-  localStorage.setItem('site_name', fields.get('siteName'));
+  localStorage.setItem('site_name', getBranding().siteName);
   localStorage.setItem('logo_image', MAIN_LOGO_SOURCE);
   localStorage.setItem('admin_name', fields.get('adminName'));
   localStorage.setItem('admin_email', fields.get('adminEmail'));
-  localStorage.setItem('admin_photo', fields.get('adminPhoto'));
+  localStorage.setItem('admin_photo', avatarValue || DEFAULT_BRANDING.adminPhoto);
   localStorage.setItem('admin_bio', fields.get('bio'));
 
   applyBrandingToUI();
   setStatus('Profile settings saved.', 'ok');
+});
+
+avatarUploadInput?.addEventListener('change', async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    setStatus('Please choose a valid image file for the avatar.', 'error');
+    return;
+  }
+
+  try {
+    const base64Image = await readFileAsDataUrl(file);
+    profileForm.adminPhoto.value = base64Image;
+    localStorage.setItem('admin_photo', base64Image);
+    applyBrandingToUI();
+    setStatus('Avatar uploaded and saved to localStorage.', 'ok');
+  } catch (error) {
+    setStatus(error.message, 'error');
+  } finally {
+    event.target.value = '';
+  }
+});
+
+removeAvatarBtn?.addEventListener('click', () => {
+  profileForm.adminPhoto.value = DEFAULT_BRANDING.adminPhoto;
+  localStorage.setItem('admin_photo', DEFAULT_BRANDING.adminPhoto);
+  applyBrandingToUI();
+  setStatus('Avatar reset to default.', 'ok');
 });
 
 async function init() {

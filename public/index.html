@@ -176,13 +176,24 @@
 
     <section id="profileView" class="panel hidden">
       <form id="profileForm" class="stack">
-        <div class="profile-card">
-          <img id="profileAvatarPreview" class="avatar-lg" alt="Avatar" />
-          <label><i class="fas fa-link"></i> Avatar URL <input name="adminPhoto" type="url" placeholder="https://..." /></label>
+        <p class="profile-top-title"><strong>Profile</strong></p>
+        <div class="profile-shell">
+          <div class="profile-layout">
+            <div class="profile-card">
+              <img id="profileAvatarPreview" class="avatar-xl" alt="Avatar preview" />
+              <div class="avatar-actions">
+                <p><strong>Profile Avatar</strong></p>
+                <label class="avatar-upload" for="avatarUploadInput">
+                  <i class="fas fa-cloud-upload-alt"></i> Upload avatar
+                </label>
+                <input id="avatarUploadInput" name="avatarUploadInput" type="file" accept="image/*" hidden />
+                <button id="removeAvatarBtn" type="button" class="secondary"><i class="fas fa-eraser"></i> Remove</button>
+              </div>
+            </div>
+          </div>
         </div>
+        <input name="adminPhoto" type="hidden" />
         <div class="grid2">
-          <label><i class="fas fa-globe"></i> Site Name <input name="siteName" type="text" required /></label>
-          <label><i class="fas fa-image"></i> Logo Image (fixed) <input name="logoImage" type="text" value="/img/Black-Logo.png" readonly /></label>
           <label><i class="fas fa-user-shield"></i> Admin Name <input name="adminName" type="text" required /></label>
           <label><i class="fas fa-envelope"></i> Admin Email <input name="adminEmail" type="email" required /></label>
           <label class="full"><i class="fas fa-pen-fancy"></i> Bio <textarea name="bio" rows="3" placeholder="Write a short, modern intro for your profile..."></textarea></label>

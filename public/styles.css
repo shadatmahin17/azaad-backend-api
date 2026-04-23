@@ -426,18 +426,80 @@ button:disabled { opacity: 0.7; cursor: not-allowed; }
 }
 .empty { justify-content: center; color: #7c8791; }
 
+.profile-top-title {
+  margin: 0 0 0.4rem;
+  text-align: center;
+  color: #1b2b44;
+  font-size: 1.05rem;
+}
+.profile-shell {
+  background: linear-gradient(135deg, #f9fffc 0%, #f4f7ff 100%);
+  border: 1px solid #e2e9f2;
+  border-radius: 18px;
+  padding: 1rem;
+  display: grid;
+  place-items: center;
+}
+.profile-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 360px);
+  gap: 0.85rem;
+  align-items: stretch;
+  justify-content: center;
+  width: 100%;
+}
+
 .profile-card {
   display: flex;
   gap: 0.75rem;
   align-items: center;
-  background: #fcfdfd;
-  border: 1px solid #e6ebef;
-  border-radius: 14px;
-  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #dfe8f2;
+  border-radius: 16px;
+  padding: 0.9rem;
   flex-wrap: wrap;
+  box-shadow: 0 10px 24px rgba(16, 32, 58, 0.07);
 }
-.avatar-lg { width: 58px; height: 58px; border-radius: 10px; object-fit: cover; }
-
+.avatar-xl {
+  width: 92px;
+  height: 92px;
+  border-radius: 24px;
+  object-fit: cover;
+  border: 2px solid #d6efe2;
+  background: #f5f7fa;
+}
+.avatar-actions {
+  display: grid;
+  gap: 0.55rem;
+}
+.avatar-actions p {
+  margin: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+.avatar-actions p strong {
+  font-size: 0.92rem;
+  color: #152238;
+}
+.avatar-upload {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid #1d7f55;
+  background: linear-gradient(180deg, #e9faef 0%, #def5e8 100%);
+  color: #0d633f;
+  font-weight: 700;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+}
+.avatar-upload:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(22, 132, 84, 0.2);
+}
 @media (max-width: 1050px) {
   #dashboardView { grid-template-columns: 1fr; }
   .sidebar { grid-template-columns: 1fr; }
@@ -502,6 +564,7 @@ button:disabled { opacity: 0.7; cursor: not-allowed; }
 
   .kpi-grid { grid-template-columns: 1fr; }
   .bar-chart { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .profile-layout { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 480px) {

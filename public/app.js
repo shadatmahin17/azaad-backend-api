@@ -34,6 +34,7 @@ const views = {
 
 const headerTitle = document.getElementById('headerTitle');
 const headerSubtitle = document.getElementById('headerSubtitle');
+const topUtilityBar = document.getElementById('topUtilityBar');
 const navButtons = [...document.querySelectorAll('.nav-btn')];
 
 const siteNameEl = document.getElementById('siteName');
@@ -283,6 +284,7 @@ function switchView(target) {
   const selectedView = map[target] || map.dashboard;
   headerTitle.innerHTML = selectedView[0];
   headerSubtitle.textContent = selectedView[1];
+  topUtilityBar?.classList.toggle('hidden', target !== 'dashboard');
 }
 
 function renderSongs(filteredSongs) {

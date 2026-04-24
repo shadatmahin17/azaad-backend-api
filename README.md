@@ -1,97 +1,311 @@
-# Azaad Backend API + Frontend Admin Options
+# 🎵 AZAAD Music Platform
 
-This repository includes two frontend options:
+![Node.js](https://img.shields.io/badge/Node.js-Backend-green)
+![React](https://img.shields.io/badge/React-Frontend-blue)
+![Supabase](https://img.shields.io/badge/Auth-Supabase-orange)
+![License](https://img.shields.io/badge/License-MIT-purple)
+![Status](https://img.shields.io/badge/Status-Production--Ready-brightgreen)
 
-1. **Built-in upload page** served by Express at `http://localhost:5000/`
-2. **Advanced React admin dashboard** in `frontend/`
+A scalable full-stack music management system with a secure backend API and modern admin dashboard for uploading, managing, and controlling music content.
 
-## Backend API
-- `GET /api`
-- `GET /api/songs`
-- `POST /api/songs` (requires `x-api-key`)
-- `DELETE /api/songs/:id` (requires `x-api-key`)
-- `POST /api/auth/signup`
-- `POST /api/auth/signin`
-- `POST /api/login` (admin username/password OR Supabase email/password)
-- `GET /api/profile-view` (requires `Authorization: Bearer <access_token>`)
-- `PUT /api/profile` (requires `Authorization: Bearer <access_token>`)
-- `POST /api/profile/avatar` (multipart/form-data, requires `Authorization: Bearer <access_token>`)
+---
 
-Uploads are stored in `uploads/` and song metadata is stored in `data/songs.json`.
+## 🚀 Features
 
-## Run backend
+- 🎧 Upload and manage songs (audio + cover)
+- 🔐 Secure authentication (Admin + Supabase)
+- 🧠 Profile system with avatar upload
+- ⚡ Fast React admin dashboard
+- ☁️ Optional AWS S3 integration
+- 📊 Searchable music library
+- 🎨 Branding & settings support
+
+---
+
+## 🧱 Tech Stack
+
+| Layer        | Technology              |
+|-------------|------------------------|
+| Backend      | Node.js + Express      |
+| Frontend     | React (Vite)           |
+| Auth         | Supabase Auth          |
+| Storage      | Local / AWS S3         |
+| Database     | JSON (dev) / scalable upgrade ready |
+
+---
+
+## 📂 Project Structure
+
+```
+
+azaad/
+├── backend/
+│   ├── uploads/
+│   ├── data/songs.json
+│   ├── routes/
+│   └── server.js
+│
+├── frontend/
+│   ├── src/
+│   └── App.jsx
+│
+├── .env
+└── README.md
+
+```
+
+---
+
+## 🌐 API Endpoints
+
+### Core
+```
+
+GET /api
+GET /api/songs
+
+```
+
+### Songs (Protected)
+```
+
+POST /api/songs
+DELETE /api/songs/:id
+
+```
+
+🔐 Requires:
+```
+
+x-api-key: YOUR_API_KEY
+
+```
+
+---
+
+### Authentication
+```
+
+POST /api/auth/signup
+POST /api/auth/signin
+POST /api/login
+
+```
+
+---
+
+### Profile (Protected)
+```
+
+GET /api/profile-view
+PUT /api/profile
+POST /api/profile/avatar
+
+```
+
+🔐 Requires:
+```
+
+Authorization: Bearer <access_token>
+
+````
+
+---
+
+## ⚙️ Backend Setup
+
 ```bash
 npm install
 npm start
+````
+
+Server runs on:
+
+```
+http://localhost:5000
 ```
 
-Backend default URL: `http://localhost:5000`
+---
 
-## Built-in upload UI (simple)
-Open:
-- `http://localhost:5000/`
+## 🖥️ Admin Dashboards
 
-This page supports uploading song audio + cover image and previewing uploaded items.
+### 🔹 Built-in Upload UI
 
-## React dashboard (advanced)
+```
+http://localhost:5000/
+```
 
-### Design reference
-The advanced dashboard styling is aligned to: `https://azzad-music-site-ruby.vercel.app/`.
-The React version lives in:
-- `frontend/src/App.jsx`
+✔ Upload songs
+✔ Preview content
 
-Features:
-- API key login/logout
-- searchable music dashboard
-- add-track upload with audio/image preview and validation
-- delete track from library
-- profile/branding settings persisted to localStorage
+---
 
-### Run React dashboard locally
+### 🔹 React Admin Dashboard
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Then open:
-- `http://localhost:5173`
+Access:
 
-### Optional frontend environment variables
-Create `frontend/.env` if needed:
-```bash
-VITE_API_BASE=http://localhost:5000/api/songs
-VITE_MAIN_SITE_URL=https://azzad-music-site-ruby.vercel.app
-
-# On deployed backend (example: https://azaad-backend-api.onrender.com/)
-# you can skip VITE_API_BASE and it will automatically use current origin + /api/songs.
+```
+http://localhost:5173
 ```
 
-## API key
-Set environment variable:
-```bash
-ADMIN_API_KEY=163087
-ADMIN_USERNAME=mahin
-ADMIN_PASSWORD=mahin@2026*
-AWS_REGION=ap-southeast-1
+✔ API key login
+✔ Upload with preview
+✔ Delete tracks
+✔ Search music
+✔ Profile settings
+
+---
+
+## 🔐 Environment Variables
+
+Create `.env`:
+
+```env
+# Security
+ADMIN_API_KEY=your_api_key
+ADMIN_USERNAME=your_username
+ADMIN_PASSWORD=your_password
+
+# AWS (optional)
+AWS_REGION=your-region
+
+# Supabase
+SUPABASE_URL=your_url
+SUPABASE_ANON_KEY=your_key
 ```
 
-If not set, backend defaults to:
-- API key: `163087`
-- username: `mahin`
-- password: `mahin@2026*`
+⚠️ Never commit `.env` to GitHub.
 
-If you send `s3://bucket/key` in `audioUrl` or `coverUrl`, the API now normalizes it to a browser-friendly HTTPS URL. Set `AWS_REGION` (or `S3_REGION`) so generated URLs use the correct regional endpoint.
+---
 
+## ☁️ AWS S3 Support
 
-## Supabase setup
-1. Copy `.env.example` to `.env` and add your Supabase values.
-2. Install server dependencies including Supabase SDK: `npm install @supabase/supabase-js dotenv`.
-3. Run `supabase/schema.sql` in Supabase SQL editor to create the `profiles` table and policies.
-4. In Supabase Auth, enable Email/Password provider.
-5. Send the returned `accessToken` from `/api/auth/signin` as `Authorization: Bearer <token>` when calling profile endpoints.
-6. You can also sign in via `POST /api/login` using `{ "email": "...", "password": "..." }` (or put the email in `username` for legacy clients).
+* Accepts:
 
-### Notes
-- `profile-view` always returns the user email from Supabase Auth (`auth.users`) so your profile screen can show email directly from Supabase.
-- Avatar uploads are stored in Supabase Storage bucket `avatars` and the public URL is saved in `profiles.avatar_url`.
+```
+s3://bucket/key
+```
+
+* Automatically converts to:
+
+```
+https://bucket.s3.region.amazonaws.com/key
+```
+
+---
+
+## 🧠 Supabase Setup
+
+1. Install:
+
+```bash
+npm install @supabase/supabase-js dotenv
+```
+
+2. Run SQL schema (`supabase/schema.sql`)
+
+3. Enable:
+
+* Email/Password authentication
+
+---
+
+## 🔄 Authentication Flow
+
+1. Login:
+
+```
+POST /api/auth/signin
+```
+
+2. Use token:
+
+```
+Authorization: Bearer <access_token>
+```
+
+---
+
+## 🛡️ Security Best Practices
+
+* Use environment variables only
+* Rotate API keys regularly
+* Validate uploads (size/type)
+* Enable HTTPS in production
+* Restrict CORS
+* Protect admin routes
+
+---
+
+## 📦 Production Improvements
+
+* Replace JSON → PostgreSQL / MongoDB
+* Add rate limiting
+* Add logging (Winston / Pino)
+* Use Docker
+* CDN for media delivery
+
+---
+
+## 🚀 Deployment
+
+| Service  | Recommended            |
+| -------- | ---------------------- |
+| Backend  | Render / Railway / AWS |
+| Frontend | Vercel / Netlify       |
+| Storage  | AWS S3                 |
+
+---
+
+## ✨ Future Roadmap
+
+* 🎼 Playlist system
+* 👥 Role-based access
+* 📈 Analytics dashboard
+* 📡 Streaming (HLS)
+* 🌍 CDN optimization
+
+---
+
+## 📸 Screenshots (Add Later)
+
+```
+/screenshots/dashboard.png
+/screenshots/upload.png
+```
+
+---
+
+## 📄 License
+
+MIT License © 2026 AZAAD
+
+---
+
+## 👨‍💻 Author
+
+**Mahin**
+Engineer | Aerospace Composites | Full-stack Builder
+
+---
+
+## ⭐ Support
+
+If you like this project:
+
+* ⭐ Star this repo
+* 🍴 Fork it
+* 🧠 Contribute ideas
+
+---
+
+## 🔥 Tagline
+
+> “Build. Upload. Stream. Scale.”
+

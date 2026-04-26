@@ -114,7 +114,7 @@ app.get('*', (req, res) => {
   if (fs.existsSync(indexPath)) {
     return res.sendFile(indexPath);
   }
-  return res.status(404).json({ error: 'Not found' });
+  return res.status(404).json({ error: 'Frontend not built. Run: npm run build' });
 });
 
 // --- Global error handler ---

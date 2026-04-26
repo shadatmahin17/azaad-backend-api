@@ -192,10 +192,10 @@ function PlayerBar({ song, songs, onChangeSong }) {
     if (!audioRef.current) return;
     if (isPlaying) {
       audioRef.current.pause();
+      setIsPlaying(false);
     } else {
-      audioRef.current.play().catch(() => {});
+      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
     }
-    setIsPlaying(!isPlaying);
   };
 
   const handleTimeUpdate = () => {
@@ -216,7 +216,10 @@ function PlayerBar({ song, songs, onChangeSong }) {
   const handleVolumeChange = (e) => {
     const val = parseFloat(e.target.value);
     setVolume(val);
-    if (audioRef.current) audioRef.current.volume = val;
+    if (audioRef.current) {
+      audioRef.current.volume = val;
+      audioRef.current.muted = false;
+    }
     setIsMuted(val === 0);
   };
 
@@ -561,7 +564,9 @@ export default function App() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Update failed.');
-      setSongs((prev) => prev.map((s) => (s.id === id ? normalizeSong(data, 0) : s)));
+      const updated = normalizeSong(data, 0);
+      setSongs((prev) => prev.map((s) => (s.id === id ? updated : s)));
+      if (currentSong?.id === id) setCurrentSong(updated);
       setEditSong(null);
       showSuccess('Track updated.');
     } catch (err) {

@@ -170,13 +170,27 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [view]);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     if (!apiKey.trim()) return;
-    localStorage.setItem('azaad_api_key', apiKey.trim());
-    setApiKey(apiKey.trim());
-    setIsLoggedIn(true);
+    setLoading(true);
     setError('');
+    try {
+      const res = await fetch(`${SERVER_BASE}/api/auth-check`, {
+        headers: { 'x-api-key': apiKey.trim() },
+      });
+      if (!res.ok) {
+        setError('Invalid API key. Please try again.');
+        return;
+      }
+      localStorage.setItem('azaad_api_key', apiKey.trim());
+      setApiKey(apiKey.trim());
+      setIsLoggedIn(true);
+    } catch {
+      setError('Could not reach the server. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLogout = () => {
@@ -345,7 +359,10 @@ export default function App() {
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
             <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} required placeholder="Enter API Key" className={`w-full px-5 py-4 rounded-2xl ${isLightTheme ? 'bg-white border border-slate-300 text-slate-900' : 'bg-black/50 border border-white/10'}`} />
-            <button style={{ backgroundColor: branding.themeColor }} className="w-full py-4 rounded-2xl font-bold">Authenticate</button>
+            {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+            <button disabled={loading} style={{ backgroundColor: branding.themeColor }} className="w-full py-4 rounded-2xl font-bold disabled:opacity-50">
+              {loading ? 'Authenticating...' : 'Authenticate'}
+            </button>
           </form>
         </div>
       </div>

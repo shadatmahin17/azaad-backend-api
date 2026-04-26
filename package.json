@@ -1,15 +1,18 @@
 {
-  "name": "azaad-react-admin-backend",
+  "name": "azaad-backend-api",
   "version": "1.0.0",
-  "description": "Backend for the Azaad React admin panel",
+  "description": "Backend API for the Azaad music platform",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "build:frontend": "cd frontend && npm install && npm run build"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.1.0",
     "multer": "^1.4.5-lts.1",
     "@supabase/supabase-js": "^2.57.4",
     "dotenv": "^16.6.1",

@@ -130,10 +130,11 @@ export default function App() {
     setError('');
 
     try {
-      const res = await fetch(API_BASE);
+      const res = await fetch(`${API_BASE}?limit=200`);
       if (!res.ok) throw new Error('Failed to fetch songs.');
       const data = await res.json();
-      setSongs(Array.isArray(data) ? data.map((song, index) => normalizeSong(song, index)) : []);
+      const songList = Array.isArray(data) ? data : (data.songs || []);
+      setSongs(songList.map((song, index) => normalizeSong(song, index)));
     } catch (err) {
       setError(err.message || 'Server connection failed. Is backend running?');
     } finally {

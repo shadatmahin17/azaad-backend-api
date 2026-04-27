@@ -457,6 +457,24 @@ export default function App() {
   }, [isLoggedIn]);
 
   useEffect(() => { fetchSongs(); }, [fetchSongs]);
+
+  useEffect(() => {
+    const storedKey = localStorage.getItem('azaad_api_key');
+    if (!storedKey) return;
+    fetch(`${SERVER_BASE}/api/auth-check`, {
+      headers: { 'x-api-key': storedKey },
+    })
+      .then((res) => {
+        if (res.status === 401) {
+          localStorage.removeItem('azaad_api_key');
+          setApiKey('');
+          setIsLoggedIn(false);
+          setSongs([]);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => () => { if (successTimer.current) clearTimeout(successTimer.current); }, []);
 
   useEffect(() => {
@@ -578,6 +596,14 @@ export default function App() {
         body: fd,
       });
       const data = await res.json();
+      if (res.status === 401) {
+        localStorage.removeItem('azaad_api_key');
+        setApiKey('');
+        setIsLoggedIn(false);
+        setSongs([]);
+        setError('Session expired. Please log in again.');
+        return;
+      }
       if (!res.ok) throw new Error(data.error || 'Upload failed.');
       e.target.reset();
       setPreviews((prev) => ({ ...prev, audio: '', cover: '' }));
@@ -602,6 +628,14 @@ export default function App() {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });
+      if (res.status === 401) {
+        localStorage.removeItem('azaad_api_key');
+        setApiKey('');
+        setIsLoggedIn(false);
+        setSongs([]);
+        setError('Session expired. Please log in again.');
+        return;
+      }
       if (!res.ok) {
         const d = await res.json();
         throw new Error(d.error || 'Delete failed.');

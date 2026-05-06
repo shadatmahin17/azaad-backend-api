@@ -136,3 +136,67 @@ select option {
   border: 2px solid var(--primary);
   animation: pulse-ring 1.5s ease-out infinite;
 }
+
+/* Sidebar transitions */
+.sidebar-slide {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Sidebar rail (tablet): collapsed icon-only */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .sidebar-rail {
+    width: 72px;
+    overflow: hidden;
+  }
+  .sidebar-rail .sidebar-label,
+  .sidebar-rail .sidebar-artists,
+  .sidebar-rail .sidebar-profile-info {
+    display: none;
+  }
+  .sidebar-rail .sidebar-nav-btn {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .sidebar-rail .sidebar-profile-row {
+    justify-content: center;
+  }
+  .sidebar-rail .sidebar-logout-btn span {
+    display: none;
+  }
+}
+
+/* Desktop: full sidebar */
+@media (min-width: 1024px) {
+  .sidebar-desktop {
+    width: 256px;
+  }
+}
+
+/* Mobile bottom nav safe area */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .mobile-bottom-nav {
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+  }
+  .player-mobile-offset {
+    bottom: calc(3.5rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* Touch-friendly tap targets */
+@media (hover: none) and (pointer: coarse) {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Overlay fade animation */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.overlay-fade {
+  animation: fade-in 0.2s ease-out;
+}

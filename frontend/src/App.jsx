@@ -181,7 +181,7 @@ function EditModal({ song, onClose, onSave, loading }) {
 }
 
 // ─── Improved Audio Player Bar ─────────────────────────────────────────────────
-function PlayerBar({ song, songs, onChangeSong }) {
+function PlayerBar({ song, songs, onChangeSong, hasBottomNav }) {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -296,7 +296,7 @@ function PlayerBar({ song, songs, onChangeSong }) {
   const progress = duration ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 player-glass border-t border-[var(--primary)]/10">
+    <div className={`fixed left-0 right-0 z-50 player-glass border-t border-[var(--primary)]/10 ${hasBottomNav ? 'bottom-14 md:bottom-0' : 'bottom-0'}`}>
       <audio
         ref={audioRef}
         src={mediaUrl(song.audioUrl)}
@@ -320,7 +320,8 @@ function PlayerBar({ song, songs, onChangeSong }) {
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-4 md:px-6 py-3 max-w-screen-2xl mx-auto">
+      {/* Desktop / Tablet player layout */}
+      <div className="hidden sm:flex items-center justify-between px-4 md:px-6 py-3 max-w-screen-2xl mx-auto">
         {/* Track info */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <div className="relative flex-shrink-0">
@@ -355,7 +356,7 @@ function PlayerBar({ song, songs, onChangeSong }) {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsShuffled(!isShuffled)}
-              className={`p-2 rounded-full transition-colors hidden sm:block ${isShuffled ? 'text-[var(--primary)]' : 'text-[var(--text-light)] hover:text-[var(--text)]'}`}
+              className={`p-2 rounded-full transition-colors ${isShuffled ? 'text-[var(--primary)]' : 'text-[var(--text-light)] hover:text-[var(--text)]'}`}
               title="Shuffle"
             >
               <Shuffle className="w-4 h-4" />
@@ -374,7 +375,7 @@ function PlayerBar({ song, songs, onChangeSong }) {
             </button>
             <button
               onClick={cycleRepeat}
-              className={`p-2 rounded-full transition-colors hidden sm:block relative ${repeatMode !== 'off' ? 'text-[var(--primary)]' : 'text-[var(--text-light)] hover:text-[var(--text)]'}`}
+              className={`p-2 rounded-full transition-colors relative ${repeatMode !== 'off' ? 'text-[var(--primary)]' : 'text-[var(--text-light)] hover:text-[var(--text)]'}`}
               title={`Repeat: ${repeatMode}`}
             >
               <Repeat className="w-4 h-4" />
@@ -404,6 +405,48 @@ function PlayerBar({ song, songs, onChangeSong }) {
             onChange={handleVolumeChange}
             className="w-28"
           />
+        </div>
+      </div>
+
+      {/* Mobile player layout — compact */}
+      <div className="flex sm:hidden items-center gap-3 px-3 py-2">
+        <div className="relative flex-shrink-0">
+          <img
+            src={mediaUrl(song.coverUrl)}
+            alt={song.title}
+            className={`w-11 h-11 rounded-lg object-cover border border-[var(--primary)]/20 ${isPlaying ? 'shadow-[0_0_12px_rgba(83,242,224,0.15)]' : ''}`}
+          />
+          {isPlaying && (
+            <div className="absolute -bottom-0.5 -right-0.5 flex items-end gap-[1.5px] bg-[var(--card-bg)] rounded px-0.5 py-0.5">
+              <span className="w-[2px] rounded-full bg-[var(--primary)] eq-bar-1" />
+              <span className="w-[2px] rounded-full bg-[var(--primary)] eq-bar-2" />
+              <span className="w-[2px] rounded-full bg-[var(--primary)] eq-bar-3" />
+            </div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold text-[var(--text)] truncate">{song.title}</p>
+          <p className="text-[10px] text-[var(--text-light)] truncate">{song.singers || song.artist}</p>
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button
+            onClick={() => setLiked(!liked)}
+            className={`p-1.5 rounded-full transition-colors ${liked ? 'text-red-400' : 'text-[var(--text-light)]'}`}
+          >
+            <Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />
+          </button>
+          <button onClick={playPrev} className="p-1.5 text-[var(--text-light)] active:text-[var(--text)] transition-colors touch-target">
+            <SkipBack className="w-4 h-4" />
+          </button>
+          <button
+            onClick={togglePlay}
+            className="w-10 h-10 rounded-full bg-[var(--primary)] text-[var(--bg)] flex items-center justify-center active:scale-95 transition-transform glow-primary touch-target"
+          >
+            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+          </button>
+          <button onClick={playNext} className="p-1.5 text-[var(--text-light)] active:text-[var(--text)] transition-colors touch-target">
+            <SkipForward className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </div>
@@ -936,91 +979,176 @@ export default function App() {
     );
   }
 
+  // Calculate bottom padding based on player + mobile nav
+  const bottomPad = currentSong ? 'pb-40 md:pb-24' : 'pb-16 md:pb-0';
+
   // ─── Main App Layout ──────────────────────────────────────────────────────
   return (
-    <div className={`min-h-screen app-bg text-[var(--text)] flex relative ${currentSong ? 'pb-24' : ''}`}>
+    <div className={`min-h-screen app-bg text-[var(--text)] flex relative ${bottomPad}`}>
       <div className="absolute inset-0 bg-[var(--bg)]/75" />
 
-      {/* Sidebar */}
-      <aside className={`fixed md:sticky top-0 z-40 h-screen w-64 flex flex-col bg-[var(--sidebar-bg)]/95 backdrop-blur-xl border-r border-[var(--primary)]/8 transition-transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+      {/* Desktop / Tablet Sidebar */}
+      <aside className="hidden md:flex sidebar-slide sidebar-rail sidebar-desktop sticky top-0 z-40 h-screen flex-col bg-[var(--sidebar-bg)]/95 backdrop-blur-xl border-r border-[var(--primary)]/8">
         {/* Logo */}
         <div className="pt-6 pb-4 flex justify-center">
           <img src={LOGO_URL} alt="Azaad" className="w-10 h-10 rounded-xl object-contain" />
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 mt-2">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-light)]/50 px-3 mb-2">Menu</p>
+        <nav className="flex-1 px-2 lg:px-3 mt-2 overflow-y-auto">
+          <p className="sidebar-label text-[10px] uppercase tracking-[0.2em] text-[var(--text-light)]/50 px-3 mb-2">Menu</p>
           {navItems.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              onClick={() => { setView(id); setIsMobileMenuOpen(false); if (id !== 'library') setSelectedArtist(null); }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all mb-1 ${
+              onClick={() => { setView(id); if (id !== 'library') setSelectedArtist(null); }}
+              title={label}
+              className={`sidebar-nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all mb-1 ${
                 view === id
                   ? 'bg-[var(--primary)]/15 text-[var(--primary)] font-semibold border border-[var(--primary)]/10'
                   : 'text-[var(--text-light)] hover:text-[var(--text)] hover:bg-white/5'
               }`}
             >
-              <Icon className="w-4 h-4" />
-              {label}
+              <Icon className="w-5 h-5 flex-shrink-0" />
+              <span className="sidebar-label truncate">{label}</span>
             </button>
           ))}
 
-          {/* Quick artist list in sidebar */}
-          {artists.length > 0 && (
-            <div className="mt-4">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-light)]/50 px-3 mb-2">Top Artists</p>
-              {artists.slice(0, 5).map((a) => (
-                <button
-                  key={a.name}
-                  onClick={() => { setSelectedArtist(a.name === selectedArtist ? null : a.name); setView('library'); setIsMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all mb-0.5 ${
-                    selectedArtist === a.name
-                      ? 'bg-[var(--accent)]/15 text-[var(--accent)]'
-                      : 'text-[var(--text-light)] hover:text-[var(--text)] hover:bg-white/5'
-                  }`}
-                >
-                  <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 border border-white/10">
-                    {a.coverUrl ? (
-                      <img src={mediaUrl(a.coverUrl)} alt={a.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-[var(--accent)]/20 flex items-center justify-center">
-                        <Mic2 className="w-3 h-3 text-[var(--accent)]" />
-                      </div>
-                    )}
-                  </div>
-                  <span className="truncate">{a.name}</span>
-                  <span className="text-[10px] text-[var(--text-light)]/50 ml-auto">{a.count}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Quick artist list in sidebar (desktop only) */}
+          <div className="sidebar-artists">
+            {artists.length > 0 && (
+              <div className="mt-4">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-light)]/50 px-3 mb-2">Top Artists</p>
+                {artists.slice(0, 5).map((a) => (
+                  <button
+                    key={a.name}
+                    onClick={() => { setSelectedArtist(a.name === selectedArtist ? null : a.name); setView('library'); }}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all mb-0.5 ${
+                      selectedArtist === a.name
+                        ? 'bg-[var(--accent)]/15 text-[var(--accent)]'
+                        : 'text-[var(--text-light)] hover:text-[var(--text)] hover:bg-white/5'
+                    }`}
+                  >
+                    <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 border border-white/10">
+                      {a.coverUrl ? (
+                        <img src={mediaUrl(a.coverUrl)} alt={a.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-[var(--accent)]/20 flex items-center justify-center">
+                          <Mic2 className="w-3 h-3 text-[var(--accent)]" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="truncate">{a.name}</span>
+                    <span className="text-[10px] text-[var(--text-light)]/50 ml-auto">{a.count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* Profile quick + logout */}
-        <div className="px-3 pb-4 space-y-2">
-          <div className="flex items-center gap-3 px-3 py-2">
-            <img src={profile.adminPhoto} alt={profile.adminName} className="w-8 h-8 rounded-full object-cover border border-[var(--primary)]/20" />
-            <div className="min-w-0">
+        <div className="px-2 lg:px-3 pb-4 space-y-2">
+          <div className="sidebar-profile-row flex items-center gap-3 px-3 py-2">
+            <img src={profile.adminPhoto} alt={profile.adminName} className="w-8 h-8 rounded-full object-cover border border-[var(--primary)]/20 flex-shrink-0" />
+            <div className="sidebar-profile-info min-w-0">
               <p className="text-xs font-medium text-[var(--text)] truncate">{profile.adminName}</p>
               <p className="text-[10px] text-[var(--text-light)] truncate">{profile.adminEmail}</p>
             </div>
           </div>
-          <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm text-[var(--text-light)] hover:text-red-400 hover:bg-red-500/10 transition-colors">
-            <LogOut className="w-4 h-4" /> Logout
+          <button onClick={handleLogout} className="sidebar-logout-btn w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm text-[var(--text-light)] hover:text-red-400 hover:bg-red-500/10 transition-colors">
+            <LogOut className="w-4 h-4 flex-shrink-0" /> <span>Logout</span>
           </button>
         </div>
       </aside>
 
-      {/* Mobile menu overlay */}
-      {isMobileMenuOpen && <div onClick={() => setIsMobileMenuOpen(false)} className="fixed inset-0 bg-black/60 z-30 md:hidden" />}
+      {/* Mobile Slide-in Drawer */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden overlay-fade">
+          <div onClick={() => setIsMobileMenuOpen(false)} className="absolute inset-0 bg-black/60" />
+          <aside className="absolute left-0 top-0 h-full w-72 max-w-[85vw] bg-[var(--sidebar-bg)]/98 backdrop-blur-xl border-r border-[var(--primary)]/10 sidebar-slide translate-x-0 flex flex-col overflow-y-auto">
+            {/* Drawer header */}
+            <div className="flex items-center justify-between px-4 pt-5 pb-3">
+              <div className="flex items-center gap-3">
+                <img src={LOGO_URL} alt="Azaad" className="w-9 h-9 rounded-xl object-contain" />
+                <span className="text-base font-bold text-[var(--text)]">Azaad Music</span>
+              </div>
+              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-lg hover:bg-white/10 text-[var(--text-light)] touch-target">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Navigation */}
+            <nav className="flex-1 px-3 mt-2">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-light)]/50 px-3 mb-2">Menu</p>
+              {navItems.map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => { setView(id); setIsMobileMenuOpen(false); if (id !== 'library') setSelectedArtist(null); }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all mb-1 touch-target ${
+                    view === id
+                      ? 'bg-[var(--primary)]/15 text-[var(--primary)] font-semibold border border-[var(--primary)]/10'
+                      : 'text-[var(--text-light)] hover:text-[var(--text)] hover:bg-white/5'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  {label}
+                </button>
+              ))}
+
+              {/* Artist list */}
+              {artists.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-light)]/50 px-3 mb-2">Top Artists</p>
+                  {artists.slice(0, 5).map((a) => (
+                    <button
+                      key={a.name}
+                      onClick={() => { setSelectedArtist(a.name === selectedArtist ? null : a.name); setView('library'); setIsMobileMenuOpen(false); }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all mb-0.5 touch-target ${
+                        selectedArtist === a.name
+                          ? 'bg-[var(--accent)]/15 text-[var(--accent)]'
+                          : 'text-[var(--text-light)] hover:text-[var(--text)] hover:bg-white/5'
+                      }`}
+                    >
+                      <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 border border-white/10">
+                        {a.coverUrl ? (
+                          <img src={mediaUrl(a.coverUrl)} alt={a.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-[var(--accent)]/20 flex items-center justify-center">
+                            <Mic2 className="w-3.5 h-3.5 text-[var(--accent)]" />
+                          </div>
+                        )}
+                      </div>
+                      <span className="truncate">{a.name}</span>
+                      <span className="text-[10px] text-[var(--text-light)]/50 ml-auto">{a.count}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </nav>
+
+            {/* Profile + logout */}
+            <div className="px-3 pb-6 pt-2 space-y-2 border-t border-[var(--primary)]/5">
+              <div className="flex items-center gap-3 px-4 py-2">
+                <img src={profile.adminPhoto} alt={profile.adminName} className="w-9 h-9 rounded-full object-cover border border-[var(--primary)]/20" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-[var(--text)] truncate">{profile.adminName}</p>
+                  <p className="text-xs text-[var(--text-light)] truncate">{profile.adminEmail}</p>
+                </div>
+              </div>
+              <button onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }} className="w-full flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-sm text-[var(--text-light)] hover:text-red-400 hover:bg-red-500/10 transition-colors touch-target">
+                <LogOut className="w-4 h-4" /> Logout
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
 
       {/* Main content */}
       <main className="flex-1 min-w-0 relative z-10">
         {/* Top bar */}
-        <header className="sticky top-0 z-20 bg-[var(--bg)]/80 backdrop-blur-xl border-b border-[var(--primary)]/8 px-6 py-4 flex items-center justify-between gap-4">
+        <header className="sticky top-0 z-20 bg-[var(--bg)]/80 backdrop-blur-xl border-b border-[var(--primary)]/8 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 rounded-lg hover:bg-white/10 text-[var(--text-light)]">
+            <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 rounded-lg hover:bg-white/10 text-[var(--text-light)] touch-target">
               <Menu className="w-5 h-5" />
             </button>
             <h2 className="text-lg font-bold text-[var(--text)]">
@@ -1055,7 +1183,7 @@ export default function App() {
           )}
         </div>
 
-        <div className="p-6">
+        <div className="p-4 md:p-6">
           {/* ─── Library View ──────────────────────────────────────────── */}
           {view === 'library' && (
             <div className="space-y-5">
@@ -1403,8 +1531,27 @@ export default function App() {
           song={currentSong}
           songs={songs}
           onChangeSong={setCurrentSong}
+          hasBottomNav={true}
         />
       )}
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden player-glass border-t border-[var(--primary)]/10 mobile-bottom-nav">
+        <div className="grid grid-cols-4">
+          {navItems.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => { setView(id); if (id !== 'library') setSelectedArtist(null); }}
+              className={`flex flex-col items-center gap-1 py-2.5 px-1 transition-colors touch-target ${
+                view === id ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span className="text-[10px] font-medium">{label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }

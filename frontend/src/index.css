@@ -170,16 +170,6 @@ select option {
   display: none;
 }
 
-/* Mobile drawer slide-in */
-@keyframes drawer-slide-in {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
-}
-
-.drawer-slide-in {
-  animation: drawer-slide-in 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
 /* Mobile bottom nav safe area */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .mobile-bottom-nav {

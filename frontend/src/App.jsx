@@ -14,7 +14,6 @@ import {
   Camera,
   LogOut,
   X,
-  Menu,
   ImageIcon,
   User,
   Mail,
@@ -580,7 +579,6 @@ export default function App() {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [view, setView] = useState('library');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window === 'undefined') return true;
     const saved = localStorage.getItem('azaad_sidebar_open');
@@ -1100,102 +1098,12 @@ export default function App() {
         </div>
       </aside>
 
-      {/* Mobile Slide-in Drawer */}
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 md:hidden overlay-fade">
-          <div onClick={() => setIsMobileMenuOpen(false)} className="absolute inset-0 bg-black/60" />
-          <aside className="absolute left-0 top-0 h-full w-72 max-w-[85vw] bg-[var(--sidebar-bg)]/98 backdrop-blur-xl border-r border-[var(--primary)]/10 drawer-slide-in flex flex-col overflow-y-auto">
-            {/* Drawer header */}
-            <div className="flex items-center justify-between px-4 pt-5 pb-3">
-              <div className="flex items-center gap-3">
-                <img src={LOGO_URL} alt="Azaad" className="w-9 h-9 rounded-xl object-contain" />
-                <span className="text-base font-bold text-[var(--text)]">Azaad Music</span>
-              </div>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-lg hover:bg-white/10 text-[var(--text-light)] touch-target">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Navigation */}
-            <nav className="flex-1 px-3 mt-2">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-light)]/50 px-3 mb-2">Menu</p>
-              {navItems.map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => { setView(id); setIsMobileMenuOpen(false); if (id !== 'library') setSelectedArtist(null); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all mb-1 touch-target ${
-                    view === id
-                      ? 'bg-[var(--primary)]/15 text-[var(--primary)] font-semibold border border-[var(--primary)]/10'
-                      : 'text-[var(--text-light)] hover:text-[var(--text)] hover:bg-white/5'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  {label}
-                </button>
-              ))}
-
-              {/* Artist list */}
-              {artists.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-light)]/50 px-3 mb-2">Top Artists</p>
-                  {artists.slice(0, 5).map((a) => (
-                    <button
-                      key={a.name}
-                      onClick={() => { setSelectedArtist(a.name === selectedArtist ? null : a.name); setView('library'); setIsMobileMenuOpen(false); }}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all mb-0.5 touch-target ${
-                        selectedArtist === a.name
-                          ? 'bg-[var(--accent)]/15 text-[var(--accent)]'
-                          : 'text-[var(--text-light)] hover:text-[var(--text)] hover:bg-white/5'
-                      }`}
-                    >
-                      <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 border border-white/10">
-                        {a.coverUrl ? (
-                          <img src={mediaUrl(a.coverUrl)} alt={a.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full bg-[var(--accent)]/20 flex items-center justify-center">
-                            <Mic2 className="w-3.5 h-3.5 text-[var(--accent)]" />
-                          </div>
-                        )}
-                      </div>
-                      <span className="truncate">{a.name}</span>
-                      <span className="text-[10px] text-[var(--text-light)]/50 ml-auto">{a.count}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </nav>
-
-            {/* Profile + logout */}
-            <div className="px-3 pb-6 pt-2 space-y-2 border-t border-[var(--primary)]/5">
-              <div className="flex items-center gap-3 px-4 py-2">
-                <img src={profile.adminPhoto} alt={profile.adminName} className="w-9 h-9 rounded-full object-cover border border-[var(--primary)]/20" />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-[var(--text)] truncate">{profile.adminName}</p>
-                  <p className="text-xs text-[var(--text-light)] truncate">{profile.adminEmail}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  setTimeout(confirmLogout, 50);
-                }}
-                className="w-full flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-sm text-[var(--text-light)] hover:text-red-400 hover:bg-red-500/10 transition-colors touch-target"
-              >
-                <LogOut className="w-4 h-4" /> Sign out
-              </button>
-            </div>
-          </aside>
-        </div>
-      )}
-
       {/* Main content */}
       <main className="flex-1 min-w-0 relative z-10">
         {/* Top bar */}
         <header className="sticky top-0 z-20 bg-[var(--bg)]/80 backdrop-blur-xl border-b border-[var(--primary)]/8 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden p-2 rounded-lg hover:bg-white/10 text-[var(--text-light)] touch-target">
-              <Menu className="w-5 h-5" />
-            </button>
+          <div className="flex items-center gap-3 md:gap-3">
+            <img src={LOGO_URL} alt="Azaad" className="md:hidden w-8 h-8 rounded-lg object-contain flex-shrink-0" />
             <h2 className="text-lg font-bold text-[var(--text)]">
               {selectedArtist ? (
                 <span className="flex items-center gap-2">

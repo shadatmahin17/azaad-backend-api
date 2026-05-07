@@ -1101,22 +1101,33 @@ export default function App() {
       {/* Main content */}
       <main className="flex-1 min-w-0 relative z-10">
         {/* Top bar */}
-        <header className="sticky top-0 z-20 bg-[var(--bg)]/80 backdrop-blur-xl border-b border-[var(--primary)]/8 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 md:gap-3">
-            <img src={LOGO_URL} alt="Azaad" className="md:hidden w-8 h-8 rounded-lg object-contain flex-shrink-0" />
-            <h2 className="text-lg font-bold text-[var(--text)]">
-              {selectedArtist ? (
-                <span className="flex items-center gap-2">
-                  <button onClick={() => setSelectedArtist(null)} className="text-[var(--text-light)] hover:text-[var(--text)] transition-colors">Library</button>
-                  <ChevronRight className="w-4 h-4 text-[var(--text-light)]" />
-                  <span className="text-[var(--primary)]">{selectedArtist}</span>
+        <header className="sticky top-0 z-20 bg-[var(--bg)]/80 backdrop-blur-xl border-b border-[var(--primary)]/8 px-4 md:px-6 py-3 md:py-4 relative flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0 max-w-[55%] md:max-w-none">
+            {selectedArtist ? (
+              <h2 className="text-base md:text-lg font-bold text-[var(--text)] truncate">
+                <span className="flex items-center gap-2 min-w-0">
+                  <button onClick={() => setSelectedArtist(null)} className="text-[var(--text-light)] hover:text-[var(--text)] transition-colors flex-shrink-0">Library</button>
+                  <ChevronRight className="w-4 h-4 text-[var(--text-light)] flex-shrink-0" />
+                  <span className="text-[var(--primary)] truncate">{selectedArtist}</span>
                 </span>
-              ) : (
-                navItems.find((n) => n.id === view)?.label || 'Library'
-              )}
-            </h2>
+              </h2>
+            ) : (
+              <h2 className="hidden md:block text-lg font-bold text-[var(--text)]">
+                {navItems.find((n) => n.id === view)?.label || 'Library'}
+              </h2>
+            )}
           </div>
-          <button onClick={fetchSongs} className="p-2 rounded-lg hover:bg-white/10 text-[var(--text-light)] hover:text-[var(--text)] transition-colors" title="Refresh">
+
+          {/* Mobile centered logo (hidden when artist breadcrumb is shown to avoid overlap) */}
+          {!selectedArtist && (
+            <img
+              src={LOGO_URL}
+              alt="Azaad"
+              className="md:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-lg object-contain pointer-events-none"
+            />
+          )}
+
+          <button onClick={fetchSongs} className="p-2 rounded-lg hover:bg-white/10 text-[var(--text-light)] hover:text-[var(--text)] transition-colors flex-shrink-0" title="Refresh">
             <RefreshCw className={`w-4 h-4 ${initLoading ? 'animate-spin' : ''}`} />
           </button>
         </header>

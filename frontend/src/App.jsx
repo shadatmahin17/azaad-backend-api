@@ -1009,22 +1009,32 @@ export default function App() {
         className={`hidden md:flex sidebar-slide ${sidebarOpen ? 'sidebar-expanded' : 'sidebar-collapsed'} sticky top-0 z-40 h-screen flex-col bg-[var(--sidebar-bg)]/95 backdrop-blur-xl border-r border-[var(--primary)]/8`}
       >
         {/* Logo + collapse toggle */}
-        <div className={`pt-5 pb-4 flex items-center ${sidebarOpen ? 'justify-between px-4' : 'justify-center'} gap-2`}>
-          <div className="flex items-center gap-2 min-w-0">
-            <img src={LOGO_URL} alt="Azaad" className="w-9 h-9 rounded-xl object-contain flex-shrink-0" />
-            {sidebarOpen && (
-              <span className="sidebar-label text-sm font-bold text-[var(--text)] truncate">Azaad</span>
-            )}
+        {sidebarOpen ? (
+          <div className="pt-5 pb-4 px-4 grid grid-cols-[1fr_auto_1fr] items-center">
+            <div />
+            <img src={LOGO_URL} alt="Azaad" className="w-10 h-10 rounded-xl object-contain mx-auto" />
+            <button
+              onClick={() => setSidebarOpen(false)}
+              title="Collapse sidebar"
+              aria-label="Collapse sidebar"
+              className="justify-self-end p-1.5 rounded-lg text-[var(--text-light)] hover:text-[var(--text)] hover:bg-white/5 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
           </div>
-          <button
-            onClick={() => setSidebarOpen((v) => !v)}
-            title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-            aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-            className="p-1.5 rounded-lg text-[var(--text-light)] hover:text-[var(--text)] hover:bg-white/5 transition-colors"
-          >
-            {sidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-          </button>
-        </div>
+        ) : (
+          <div className="pt-5 pb-4 flex flex-col items-center gap-2">
+            <img src={LOGO_URL} alt="Azaad" className="w-10 h-10 rounded-xl object-contain" />
+            <button
+              onClick={() => setSidebarOpen(true)}
+              title="Expand sidebar"
+              aria-label="Expand sidebar"
+              className="p-1.5 rounded-lg text-[var(--text-light)] hover:text-[var(--text)] hover:bg-white/5 transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Navigation */}
         <nav className="flex-1 px-2 lg:px-3 mt-1 overflow-y-auto">

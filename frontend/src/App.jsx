@@ -36,6 +36,7 @@ import {
   Shuffle,
   Heart,
   ChevronRight,
+  ChevronLeft,
 } from 'lucide-react';
 
 const DEFAULT_API_BASE = typeof window !== 'undefined' ? `${window.location.origin}/api/songs` : 'http://localhost:5000/api/songs';
@@ -580,6 +581,18 @@ export default function App() {
   const [loginPassword, setLoginPassword] = useState('');
   const [view, setView] = useState('library');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const saved = localStorage.getItem('azaad_sidebar_open');
+    if (saved !== null) return saved === 'true';
+    return window.matchMedia('(min-width: 1024px)').matches;
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('azaad_sidebar_open', String(sidebarOpen));
+    }
+  }, [sidebarOpen]);
 
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -727,6 +740,12 @@ export default function App() {
     setIsLoggedIn(false);
     setSongs([]);
     setCurrentSong(null);
+  };
+
+  const confirmLogout = () => {
+    if (window.confirm('Are you sure you want to sign out?')) {
+      handleLogout();
+    }
   };
 
   const handleFilePreview = (e, target) => {
@@ -882,7 +901,7 @@ export default function App() {
   const navItems = [
     { id: 'library', label: 'Library', icon: Library },
     { id: 'artists', label: 'Artists', icon: Mic2 },
-    { id: 'upload', label: 'Upload Track', icon: Upload },
+    { id: 'upload', label: 'Upload', icon: Upload },
     { id: 'profile', label: 'Profile', icon: User },
   ];
 
@@ -988,15 +1007,30 @@ export default function App() {
       <div className="absolute inset-0 bg-[var(--bg)]/75" />
 
       {/* Desktop / Tablet Sidebar */}
-      <aside className="hidden md:flex sidebar-slide sidebar-rail sidebar-desktop sticky top-0 z-40 h-screen flex-col bg-[var(--sidebar-bg)]/95 backdrop-blur-xl border-r border-[var(--primary)]/8">
-        {/* Logo */}
-        <div className="pt-6 pb-4 flex justify-center">
-          <img src={LOGO_URL} alt="Azaad" className="w-10 h-10 rounded-xl object-contain" />
+      <aside
+        className={`hidden md:flex sidebar-slide ${sidebarOpen ? 'sidebar-expanded' : 'sidebar-collapsed'} sticky top-0 z-40 h-screen flex-col bg-[var(--sidebar-bg)]/95 backdrop-blur-xl border-r border-[var(--primary)]/8`}
+      >
+        {/* Logo + collapse toggle */}
+        <div className={`pt-5 pb-4 flex items-center ${sidebarOpen ? 'justify-between px-4' : 'justify-center'} gap-2`}>
+          <div className="flex items-center gap-2 min-w-0">
+            <img src={LOGO_URL} alt="Azaad" className="w-9 h-9 rounded-xl object-contain flex-shrink-0" />
+            {sidebarOpen && (
+              <span className="sidebar-label text-sm font-bold text-[var(--text)] truncate">Azaad</span>
+            )}
+          </div>
+          <button
+            onClick={() => setSidebarOpen((v) => !v)}
+            title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+            aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+            className="p-1.5 rounded-lg text-[var(--text-light)] hover:text-[var(--text)] hover:bg-white/5 transition-colors"
+          >
+            {sidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-2 lg:px-3 mt-2 overflow-y-auto">
-          <p className="sidebar-label text-[10px] uppercase tracking-[0.2em] text-[var(--text-light)]/50 px-3 mb-2">Menu</p>
+        <nav className="flex-1 px-2 lg:px-3 mt-1 overflow-y-auto">
+          <p className="sidebar-section-label text-[10px] uppercase tracking-[0.2em] text-[var(--text-light)]/50 px-3 mb-2">Menu</p>
           {navItems.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -1013,7 +1047,7 @@ export default function App() {
             </button>
           ))}
 
-          {/* Quick artist list in sidebar (desktop only) */}
+          {/* Quick artist list in sidebar (only when expanded) */}
           <div className="sidebar-artists">
             {artists.length > 0 && (
               <div className="mt-4">
@@ -1047,7 +1081,7 @@ export default function App() {
         </nav>
 
         {/* Profile quick + logout */}
-        <div className="px-2 lg:px-3 pb-4 space-y-2">
+        <div className="px-2 lg:px-3 pb-4 pt-2 space-y-2 border-t border-[var(--primary)]/5">
           <div className="sidebar-profile-row flex items-center gap-3 px-3 py-2">
             <img src={profile.adminPhoto} alt={profile.adminName} className="w-8 h-8 rounded-full object-cover border border-[var(--primary)]/20 flex-shrink-0" />
             <div className="sidebar-profile-info min-w-0">
@@ -1055,8 +1089,13 @@ export default function App() {
               <p className="text-[10px] text-[var(--text-light)] truncate">{profile.adminEmail}</p>
             </div>
           </div>
-          <button onClick={handleLogout} className="sidebar-logout-btn w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm text-[var(--text-light)] hover:text-red-400 hover:bg-red-500/10 transition-colors">
-            <LogOut className="w-4 h-4 flex-shrink-0" /> <span>Logout</span>
+          <button
+            onClick={confirmLogout}
+            title="Sign out"
+            aria-label="Sign out"
+            className="sidebar-logout-btn w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm text-[var(--text-light)] hover:text-red-400 hover:bg-red-500/10 transition-colors"
+          >
+            <LogOut className="w-4 h-4 flex-shrink-0" /> <span>Sign out</span>
           </button>
         </div>
       </aside>
@@ -1065,7 +1104,7 @@ export default function App() {
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 md:hidden overlay-fade">
           <div onClick={() => setIsMobileMenuOpen(false)} className="absolute inset-0 bg-black/60" />
-          <aside className="absolute left-0 top-0 h-full w-72 max-w-[85vw] bg-[var(--sidebar-bg)]/98 backdrop-blur-xl border-r border-[var(--primary)]/10 sidebar-slide translate-x-0 flex flex-col overflow-y-auto">
+          <aside className="absolute left-0 top-0 h-full w-72 max-w-[85vw] bg-[var(--sidebar-bg)]/98 backdrop-blur-xl border-r border-[var(--primary)]/10 drawer-slide-in flex flex-col overflow-y-auto">
             {/* Drawer header */}
             <div className="flex items-center justify-between px-4 pt-5 pb-3">
               <div className="flex items-center gap-3">
@@ -1135,8 +1174,14 @@ export default function App() {
                   <p className="text-xs text-[var(--text-light)] truncate">{profile.adminEmail}</p>
                 </div>
               </div>
-              <button onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }} className="w-full flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-sm text-[var(--text-light)] hover:text-red-400 hover:bg-red-500/10 transition-colors touch-target">
-                <LogOut className="w-4 h-4" /> Logout
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setTimeout(confirmLogout, 50);
+                }}
+                className="w-full flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-sm text-[var(--text-light)] hover:text-red-400 hover:bg-red-500/10 transition-colors touch-target"
+              >
+                <LogOut className="w-4 h-4" /> Sign out
               </button>
             </div>
           </aside>
@@ -1510,6 +1555,14 @@ export default function App() {
               <button className="w-full py-3.5 rounded-xl bg-[var(--primary-dark)] hover:bg-[var(--primary)] text-[var(--bg)] font-bold flex items-center justify-center gap-2 transition-all glow-primary">
                 <Save className="w-4 h-4" /> Save Profile
               </button>
+
+              <button
+                type="button"
+                onClick={confirmLogout}
+                className="w-full py-3.5 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 font-semibold flex items-center justify-center gap-2 transition-colors touch-target"
+              >
+                <LogOut className="w-4 h-4" /> Sign Out
+              </button>
             </form>
           )}
         </div>
@@ -1537,7 +1590,7 @@ export default function App() {
 
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden player-glass border-t border-[var(--primary)]/10 mobile-bottom-nav">
-        <div className="grid grid-cols-4">
+        <div className="grid grid-cols-5">
           {navItems.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -1547,9 +1600,17 @@ export default function App() {
               }`}
             >
               <Icon className="w-5 h-5" />
-              <span className="text-[10px] font-medium">{label}</span>
+              <span className="text-[10px] font-medium truncate max-w-full">{label}</span>
             </button>
           ))}
+          <button
+            onClick={confirmLogout}
+            aria-label="Sign out"
+            className="flex flex-col items-center gap-1 py-2.5 px-1 transition-colors touch-target text-[var(--text-light)]/60 hover:text-red-400"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Sign Out</span>
+          </button>
         </div>
       </nav>
     </div>

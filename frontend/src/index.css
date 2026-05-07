@@ -142,35 +142,42 @@ select option {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Sidebar rail (tablet): collapsed icon-only */
-@media (min-width: 768px) and (max-width: 1023px) {
-  .sidebar-rail {
-    width: 72px;
-    overflow: hidden;
-  }
-  .sidebar-rail .sidebar-label,
-  .sidebar-rail .sidebar-artists,
-  .sidebar-rail .sidebar-profile-info {
-    display: none;
-  }
-  .sidebar-rail .sidebar-nav-btn {
-    justify-content: center;
-    padding-left: 0;
-    padding-right: 0;
-  }
-  .sidebar-rail .sidebar-profile-row {
-    justify-content: center;
-  }
-  .sidebar-rail .sidebar-logout-btn span {
-    display: none;
-  }
+/* Class-based sidebar widths so the desktop sidebar can be collapsed/expanded
+   manually (independent of viewport width). */
+.sidebar-expanded {
+  width: 256px;
 }
 
-/* Desktop: full sidebar */
-@media (min-width: 1024px) {
-  .sidebar-desktop {
-    width: 256px;
-  }
+.sidebar-collapsed {
+  width: 72px;
+  overflow: hidden;
+}
+.sidebar-collapsed .sidebar-label,
+.sidebar-collapsed .sidebar-artists,
+.sidebar-collapsed .sidebar-profile-info,
+.sidebar-collapsed .sidebar-section-label {
+  display: none;
+}
+.sidebar-collapsed .sidebar-nav-btn {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+.sidebar-collapsed .sidebar-profile-row {
+  justify-content: center;
+}
+.sidebar-collapsed .sidebar-logout-btn span {
+  display: none;
+}
+
+/* Mobile drawer slide-in */
+@keyframes drawer-slide-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+.drawer-slide-in {
+  animation: drawer-slide-in 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Mobile bottom nav safe area */

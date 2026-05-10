@@ -48,3 +48,27 @@ with check (auth.uid() = id);
 insert into storage.buckets (id, name, public)
 values ('avatars', 'avatars', true)
 on conflict (id) do nothing;
+
+-- Storage policies for the avatars bucket
+-- (The backend uses the service_role key which bypasses RLS, but these
+-- policies are required if the anon/publishable key is used instead.)
+
+create policy "Anyone can view avatars"
+on storage.objects for select
+using (bucket_id = 'avatars');
+
+create policy "Authenticated users can upload their own avatar"
+on storage.objects for insert
+with check (
+  bucket_id = 'avatars'
+  and auth.role() = 'authenticated'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+create policy "Authenticated users can update their own avatar"
+on storage.objects for update
+using (
+  bucket_id = 'avatars'
+  and auth.role() = 'authenticated'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);

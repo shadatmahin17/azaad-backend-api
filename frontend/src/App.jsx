@@ -656,7 +656,34 @@ export default function App() {
     }
   }, [isLoggedIn]);
 
+  const fetchProfile = useCallback(async () => {
+    const mode = localStorage.getItem('azaad_auth_mode');
+    if (mode !== 'email') return;
+    const token = localStorage.getItem('azaad_access_token');
+    if (!token) return;
+    try {
+      const res = await fetch(`${SERVER_BASE}/api/profile-view`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const p = data.profile || {};
+      const updated = {
+        adminName: p.full_name || profile.adminName,
+        adminEmail: data.email || profile.adminEmail,
+        adminPhoto: p.avatar_url || profile.adminPhoto,
+        bio: p.bio || profile.bio,
+      };
+      setProfile(updated);
+      localStorage.setItem('admin_name', updated.adminName);
+      localStorage.setItem('admin_email', updated.adminEmail);
+      localStorage.setItem('admin_bio', updated.bio);
+      if (p.avatar_url) localStorage.setItem('admin_photo', p.avatar_url);
+    } catch { /* ignore fetch errors */ }
+  }, []);
+
   useEffect(() => { fetchSongs(); }, [fetchSongs]);
+  useEffect(() => { if (isLoggedIn) fetchProfile(); }, [isLoggedIn, fetchProfile]);
   useEffect(() => () => { if (successTimer.current) clearTimeout(successTimer.current); }, []);
 
   useEffect(() => {
@@ -772,6 +799,31 @@ export default function App() {
     if (target === 'avatar') {
       setProfile((prev) => ({ ...prev, adminPhoto: url }));
       localStorage.setItem('admin_photo', url);
+
+      const mode = localStorage.getItem('azaad_auth_mode');
+      if (mode === 'email') {
+        const token = localStorage.getItem('azaad_access_token');
+        if (token) {
+          const fd = new FormData();
+          fd.append('avatar', file);
+          fetch(`${SERVER_BASE}/api/profile/avatar`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: fd,
+          })
+            .then((r) => r.json())
+            .then((data) => {
+              if (data.avatarUrl) {
+                setProfile((prev) => ({ ...prev, adminPhoto: data.avatarUrl }));
+                localStorage.setItem('admin_photo', data.avatarUrl);
+                showSuccess('Avatar uploaded.');
+              } else if (data.error) {
+                setError(data.error);
+              }
+            })
+            .catch(() => setError('Avatar upload failed.'));
+        }
+      }
     }
   };
 
@@ -859,7 +911,7 @@ export default function App() {
     }
   };
 
-  const updateProfile = (e) => {
+  const updateProfile = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const updated = {
@@ -872,6 +924,34 @@ export default function App() {
     localStorage.setItem('admin_name', updated.adminName);
     localStorage.setItem('admin_email', updated.adminEmail);
     localStorage.setItem('admin_bio', updated.bio);
+
+    const mode = localStorage.getItem('azaad_auth_mode');
+    if (mode === 'email') {
+      const token = localStorage.getItem('azaad_access_token');
+      if (token) {
+        try {
+          const res = await fetch(`${SERVER_BASE}/api/profile`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              fullName: updated.adminName,
+              bio: updated.bio,
+            }),
+          });
+          if (!res.ok) {
+            const data = await res.json();
+            setError(data.error || 'Profile sync failed.');
+            return;
+          }
+        } catch {
+          setError('Could not sync profile to server.');
+          return;
+        }
+      }
+    }
     showSuccess('Profile saved.');
   };
 

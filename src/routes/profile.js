@@ -91,6 +91,36 @@ router.post('/auth/signin', async (req, res) => {
   });
 });
 
+router.post('/auth/refresh', async (req, res) => {
+  const { ensureSupabaseReady } = require('../middleware/auth');
+  if (!ensureSupabaseReady(res)) return;
+
+  const refreshToken =
+    typeof req.body?.refreshToken === 'string'
+      ? req.body.refreshToken.trim()
+      : '';
+
+  if (!refreshToken) {
+    return res.status(400).json({ error: 'refreshToken is required' });
+  }
+
+  const { data, error } = await supabaseAdmin.auth.refreshSession({
+    refresh_token: refreshToken,
+  });
+
+  if (error || !data?.session) {
+    return res
+      .status(401)
+      .json({ error: error?.message || 'Token refresh failed' });
+  }
+
+  return res.json({
+    accessToken: data.session.access_token,
+    refreshToken: data.session.refresh_token,
+    expiresAt: data.session.expires_at,
+  });
+});
+
 router.get(
   '/profile-view',
   requireSupabaseUser,

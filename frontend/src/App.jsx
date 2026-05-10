@@ -623,6 +623,30 @@ export default function App() {
   const [audioUrlInput, setAudioUrlInput] = useState('');
   const [coverUrlInput, setCoverUrlInput] = useState('');
 
+  const refreshAccessToken = useCallback(async () => {
+    const rt = localStorage.getItem('azaad_refresh_token');
+    if (!rt) return null;
+    try {
+      const res = await fetch(`${SERVER_BASE}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: rt }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data.accessToken) {
+        localStorage.setItem('azaad_access_token', data.accessToken);
+        setAccessToken(data.accessToken);
+      }
+      if (data.refreshToken) {
+        localStorage.setItem('azaad_refresh_token', data.refreshToken);
+      }
+      return data.accessToken || null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const getAuthHeaders = useCallback(() => {
     const mode = localStorage.getItem('azaad_auth_mode');
     if (mode === 'email') {
@@ -659,28 +683,45 @@ export default function App() {
   const fetchProfile = useCallback(async () => {
     const mode = localStorage.getItem('azaad_auth_mode');
     if (mode !== 'email') return;
-    const token = localStorage.getItem('azaad_access_token');
+    let token = localStorage.getItem('azaad_access_token');
     if (!token) return;
     try {
-      const res = await fetch(`${SERVER_BASE}/api/profile-view`, {
+      let res = await fetch(`${SERVER_BASE}/api/profile-view`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
-      if (!res.ok) return;
+      if (res.status === 401) {
+        token = await refreshAccessToken();
+        if (token) {
+          res = await fetch(`${SERVER_BASE}/api/profile-view`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+        }
+      }
+      if (!res.ok) {
+        console.warn('Profile fetch failed:', res.status);
+        return;
+      }
       const data = await res.json();
       const p = data.profile || {};
+      const fallbackName = localStorage.getItem('admin_name') || 'Azad Hossain';
+      const fallbackEmail = localStorage.getItem('admin_email') || '';
+      const fallbackPhoto = localStorage.getItem('admin_photo') || '';
+      const fallbackBio = localStorage.getItem('admin_bio') || '';
       const updated = {
-        adminName: p.full_name || profile.adminName,
-        adminEmail: data.email || profile.adminEmail,
-        adminPhoto: p.avatar_url || profile.adminPhoto,
-        bio: p.bio || profile.bio,
+        adminName: p.full_name || fallbackName,
+        adminEmail: data.email || fallbackEmail,
+        adminPhoto: p.avatar_url || fallbackPhoto,
+        bio: p.bio || fallbackBio,
       };
       setProfile(updated);
       localStorage.setItem('admin_name', updated.adminName);
       localStorage.setItem('admin_email', updated.adminEmail);
       localStorage.setItem('admin_bio', updated.bio);
       if (p.avatar_url) localStorage.setItem('admin_photo', p.avatar_url);
-    } catch { /* ignore fetch errors */ }
-  }, []);
+    } catch (err) {
+      console.warn('Profile fetch error:', err.message);
+    }
+  }, [refreshAccessToken]);
 
   useEffect(() => { fetchSongs(); }, [fetchSongs]);
   useEffect(() => { if (isLoggedIn) fetchProfile(); }, [isLoggedIn, fetchProfile]);
@@ -739,6 +780,7 @@ export default function App() {
         const data = await res.json();
         if (!res.ok || !data.ok) { setError(data.error || 'Login failed.'); return; }
         localStorage.setItem('azaad_access_token', data.accessToken);
+        if (data.refreshToken) localStorage.setItem('azaad_refresh_token', data.refreshToken);
         localStorage.setItem('azaad_auth_mode', 'email');
         if (data.user?.email) {
           localStorage.setItem('admin_email', data.user.email);
@@ -758,6 +800,7 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('azaad_api_key');
     localStorage.removeItem('azaad_access_token');
+    localStorage.removeItem('azaad_refresh_token');
     localStorage.removeItem('azaad_auth_mode');
     setApiKey('');
     setAccessToken('');
@@ -773,7 +816,7 @@ export default function App() {
     }
   };
 
-  const handleFilePreview = (e, target) => {
+  const handleFilePreview = async (e, target) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const isAudio = target === 'audio';
@@ -798,30 +841,46 @@ export default function App() {
     setError('');
     if (target === 'avatar') {
       setProfile((prev) => ({ ...prev, adminPhoto: url }));
-      localStorage.setItem('admin_photo', url);
 
       const mode = localStorage.getItem('azaad_auth_mode');
       if (mode === 'email') {
-        const token = localStorage.getItem('azaad_access_token');
+        let token = localStorage.getItem('azaad_access_token');
         if (token) {
           const fd = new FormData();
           fd.append('avatar', file);
-          fetch(`${SERVER_BASE}/api/profile/avatar`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: fd,
-          })
-            .then((r) => r.json())
-            .then((data) => {
-              if (data.avatarUrl) {
-                setProfile((prev) => ({ ...prev, adminPhoto: data.avatarUrl }));
-                localStorage.setItem('admin_photo', data.avatarUrl);
-                showSuccess('Avatar uploaded.');
-              } else if (data.error) {
-                setError(data.error);
+          const uploadAvatar = async (t) => {
+            const res = await fetch(`${SERVER_BASE}/api/profile/avatar`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${t}` },
+              body: fd,
+            });
+            return res;
+          };
+          try {
+            let res = await uploadAvatar(token);
+            if (res.status === 401) {
+              token = await refreshAccessToken();
+              if (token) {
+                const fd2 = new FormData();
+                fd2.append('avatar', file);
+                res = await fetch(`${SERVER_BASE}/api/profile/avatar`, {
+                  method: 'POST',
+                  headers: { 'Authorization': `Bearer ${token}` },
+                  body: fd2,
+                });
               }
-            })
-            .catch(() => setError('Avatar upload failed.'));
+            }
+            const data = await res.json();
+            if (data.avatarUrl) {
+              setProfile((prev) => ({ ...prev, adminPhoto: data.avatarUrl }));
+              localStorage.setItem('admin_photo', data.avatarUrl);
+              showSuccess('Avatar uploaded.');
+            } else if (data.error) {
+              setError(data.error);
+            }
+          } catch {
+            setError('Avatar upload failed.');
+          }
         }
       }
     }
@@ -927,13 +986,13 @@ export default function App() {
 
     const mode = localStorage.getItem('azaad_auth_mode');
     if (mode === 'email') {
-      const token = localStorage.getItem('azaad_access_token');
+      let token = localStorage.getItem('azaad_access_token');
       if (token) {
         try {
-          const res = await fetch(`${SERVER_BASE}/api/profile`, {
+          const makeRequest = (t) => fetch(`${SERVER_BASE}/api/profile`, {
             method: 'PUT',
             headers: {
-              'Authorization': `Bearer ${token}`,
+              'Authorization': `Bearer ${t}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
@@ -941,6 +1000,11 @@ export default function App() {
               bio: updated.bio,
             }),
           });
+          let res = await makeRequest(token);
+          if (res.status === 401) {
+            token = await refreshAccessToken();
+            if (token) res = await makeRequest(token);
+          }
           if (!res.ok) {
             const data = await res.json();
             setError(data.error || 'Profile sync failed.');

@@ -97,6 +97,23 @@ app.get('/api', (req, res) => {
       signup: 'POST /api/auth/signup',
       signin: 'POST /api/auth/signin',
       profile: 'GET /api/profile-view',
+      health: 'GET /api/health',
+    },
+  });
+});
+
+// --- Health check ---
+app.get('/api/health', (req, res) => {
+  const { hasSupabaseDataApi, hasSupabaseStorageApi } = require('./src/config/supabase');
+  const { USE_SUPABASE, SUPABASE_STORAGE_BUCKET, SUPABASE_SONGS_BUCKET } = require('./src/config/env');
+  res.json({
+    ok: true,
+    supabase: {
+      configured: USE_SUPABASE,
+      dataApi: hasSupabaseDataApi,
+      storageApi: hasSupabaseStorageApi,
+      avatarsBucket: SUPABASE_STORAGE_BUCKET,
+      songsBucket: SUPABASE_SONGS_BUCKET,
     },
   });
 });
@@ -128,5 +145,13 @@ app.use((error, req, res, _next) => {
 });
 
 app.listen(PORT, () => {
+  const { hasSupabaseDataApi, hasSupabaseStorageApi } = require('./src/config/supabase');
+  const { USE_SUPABASE } = require('./src/config/env');
   console.log(`Azaad backend running at http://localhost:${PORT}`);
+  console.log(`  Supabase configured: ${USE_SUPABASE}`);
+  console.log(`  Supabase data API:   ${hasSupabaseDataApi}`);
+  console.log(`  Supabase storage:    ${hasSupabaseStorageApi}`);
+  if (!USE_SUPABASE) {
+    console.warn('  ⚠ Set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY to enable profile & storage features');
+  }
 });

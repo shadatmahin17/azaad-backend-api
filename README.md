@@ -109,6 +109,7 @@ Environment variables are loaded from `.env` (or `.env.example` if `.env` does n
 - `SUPABASE_PUBLISHABLE_KEY` (or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`)
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_STORAGE_BUCKET` (default: `avatars`)
+- `SUPABASE_SONGS_BUCKET` (default: `songs`) – bucket for audio and cover files
 
 > **Important:** Never commit real credentials. Use `.env` for local secrets and environment management for production.
 

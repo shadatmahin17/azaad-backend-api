@@ -7,7 +7,8 @@ const { upload } = require('../middleware/upload');
 const { readSongs, writeSongs } = require('../utils/songs');
 const { normalizeMediaUrl, isAllowedMediaUrl } = require('../utils/media');
 const { normalizeCategory } = require('../utils/category');
-const { ROOT_DIR } = require('../config/env');
+const { uploadToSupabaseBucket, removeFromSupabaseBucket } = require('../utils/storage');
+const { ROOT_DIR, SUPABASE_SONGS_BUCKET } = require('../config/env');
 
 const router = express.Router();
 
@@ -49,7 +50,7 @@ router.post(
     { name: 'audio', maxCount: 1 },
     { name: 'cover', maxCount: 1 },
   ]),
-  (req, res) => {
+  async (req, res) => {
     try {
       const songs = readSongs();
 
@@ -92,8 +93,38 @@ router.post(
           .json({ error: 'coverUrl must be a valid http(s) or s3:// URL' });
       }
 
+      const songId = crypto.randomUUID();
+      const ts = Date.now();
+
+      let resolvedAudioUrl = sanitizedAudioUrl
+        ? normalizeMediaUrl(sanitizedAudioUrl)
+        : null;
+      let resolvedCoverUrl = sanitizedCoverUrl
+        ? normalizeMediaUrl(sanitizedCoverUrl)
+        : null;
+
+      if (audioFile) {
+        const localPath = path.join(ROOT_DIR, 'uploads', 'audio', audioFile.filename);
+        const ext = path.extname(audioFile.originalname || '').toLowerCase() || '.mp3';
+        const objectPath = `audio/${songId}/${ts}${ext}`;
+        const supabaseUrl = await uploadToSupabaseBucket(
+          SUPABASE_SONGS_BUCKET, objectPath, localPath, audioFile.mimetype
+        );
+        resolvedAudioUrl = supabaseUrl || `/uploads/audio/${audioFile.filename}`;
+      }
+
+      if (coverFile) {
+        const localPath = path.join(ROOT_DIR, 'uploads', 'covers', coverFile.filename);
+        const ext = path.extname(coverFile.originalname || '').toLowerCase() || '.jpg';
+        const objectPath = `covers/${songId}/${ts}${ext}`;
+        const supabaseUrl = await uploadToSupabaseBucket(
+          SUPABASE_SONGS_BUCKET, objectPath, localPath, coverFile.mimetype
+        );
+        resolvedCoverUrl = supabaseUrl || `/uploads/covers/${coverFile.filename}`;
+      }
+
       const newSong = {
-        id: crypto.randomUUID(),
+        id: songId,
         title: String(title).trim(),
         artist: String(artist).trim(),
         category: normalizeCategory(category),
@@ -103,12 +134,8 @@ router.post(
         vibe: vibe ? String(vibe).trim() : '',
         featured: featured === 'true' || featured === true,
         trending: trending === 'true' || trending === true,
-        coverUrl: coverFile
-          ? `/uploads/covers/${coverFile.filename}`
-          : normalizeMediaUrl(sanitizedCoverUrl),
-        audioUrl: audioFile
-          ? `/uploads/audio/${audioFile.filename}`
-          : normalizeMediaUrl(sanitizedAudioUrl),
+        coverUrl: resolvedCoverUrl,
+        audioUrl: resolvedAudioUrl,
         createdAt: new Date().toISOString(),
       };
 
@@ -264,6 +291,9 @@ router.delete('/:id', requireAuth, (req, res) => {
 
     removeIfLocal(removed.coverUrl);
     removeIfLocal(removed.audioUrl);
+
+    removeFromSupabaseBucket(SUPABASE_SONGS_BUCKET, removed.audioUrl).catch(() => {});
+    removeFromSupabaseBucket(SUPABASE_SONGS_BUCKET, removed.coverUrl).catch(() => {});
 
     writeSongs(songs);
     return res.json({ success: true, removed });

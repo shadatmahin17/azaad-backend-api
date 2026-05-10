@@ -72,3 +72,34 @@ using (
   and auth.role() = 'authenticated'
   and (storage.foldername(name))[1] = auth.uid()::text
 );
+
+-- ─── Songs bucket for audio and cover files ────────────────────────────────────
+
+insert into storage.buckets (id, name, public)
+values ('songs', 'songs', true)
+on conflict (id) do nothing;
+
+create policy "Anyone can view songs media"
+on storage.objects for select
+using (bucket_id = 'songs');
+
+create policy "Authenticated users can upload songs media"
+on storage.objects for insert
+with check (
+  bucket_id = 'songs'
+  and auth.role() = 'authenticated'
+);
+
+create policy "Authenticated users can update songs media"
+on storage.objects for update
+using (
+  bucket_id = 'songs'
+  and auth.role() = 'authenticated'
+);
+
+create policy "Authenticated users can delete songs media"
+on storage.objects for delete
+using (
+  bucket_id = 'songs'
+  and auth.role() = 'authenticated'
+);

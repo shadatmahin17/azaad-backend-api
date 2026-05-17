@@ -1091,9 +1091,7 @@ export default function App() {
         <div className="absolute inset-0 bg-[var(--bg)]/80 backdrop-blur-sm" />
         <div className="w-full max-w-sm relative z-10">
           <div className="text-center mb-8">
-            <img src={LOGO_URL} alt="Azaad" className="w-20 h-20 rounded-2xl mx-auto mb-4 object-contain shadow-[0_0_30px_rgba(83,242,224,0.2)]" />
-            <h1 className="text-2xl font-bold text-[var(--text)] tracking-tight">AZAAD MUSIC</h1>
-            <p className="text-sm text-[var(--text-light)] mt-1">Admin Dashboard</p>
+            <img src={LOGO_URL} alt="Azaad" className="w-20 h-20 rounded-2xl mx-auto mb-4 object-contain" />
           </div>
 
           {/* Login mode toggle */}

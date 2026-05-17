@@ -36,6 +36,7 @@ import {
   Heart,
   ChevronRight,
   ChevronLeft,
+  UserPlus,
 } from 'lucide-react';
 
 const DEFAULT_API_BASE = typeof window !== 'undefined' ? `${window.location.origin}/api/songs` : 'http://localhost:5000/api/songs';
@@ -578,6 +579,8 @@ export default function App() {
   const [loginMode, setLoginMode] = useState('apikey');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [isSignup, setIsSignup] = useState(false);
+  const [signupName, setSignupName] = useState('');
   const [view, setView] = useState('library');
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window === 'undefined') return true;
@@ -772,6 +775,38 @@ export default function App() {
         setIsLoggedIn(true);
       } else {
         if (!loginEmail.trim() || !loginPassword) { setError('Email and password are required.'); return; }
+
+        if (isSignup) {
+          const signupRes = await fetch(`${SERVER_BASE}/api/auth/signup`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: loginEmail.trim(), password: loginPassword, fullName: signupName.trim() }),
+          });
+          const signupData = await signupRes.json();
+          if (!signupRes.ok) { setError(signupData.error || 'Signup failed.'); return; }
+          if (signupData.session?.access_token) {
+            localStorage.setItem('azaad_access_token', signupData.session.access_token);
+            if (signupData.session.refresh_token) localStorage.setItem('azaad_refresh_token', signupData.session.refresh_token);
+            localStorage.setItem('azaad_auth_mode', 'email');
+            if (signupData.user?.email) {
+              localStorage.setItem('admin_email', signupData.user.email);
+              setProfile((prev) => ({ ...prev, adminEmail: signupData.user.email }));
+            }
+            if (signupName.trim()) {
+              localStorage.setItem('admin_name', signupName.trim());
+              setProfile((prev) => ({ ...prev, adminName: signupName.trim() }));
+            }
+            setAccessToken(signupData.session.access_token);
+            setStoredAuthMode('email');
+            setIsLoggedIn(true);
+            return;
+          }
+          setIsSignup(false);
+          setError('');
+          showSuccess('Account created! Please sign in.');
+          return;
+        }
+
         const res = await fetch(`${SERVER_BASE}/api/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1098,6 +1133,18 @@ export default function App() {
               </div>
             ) : (
               <>
+                {isSignup && (
+                  <div className="relative">
+                    <User className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-light)]" />
+                    <input
+                      type="text"
+                      value={signupName}
+                      onChange={(e) => setSignupName(e.target.value)}
+                      placeholder="Full name"
+                      className="w-full pl-11 pr-4 py-4 rounded-xl glass-card text-[var(--text)] placeholder-[var(--text-light)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-colors"
+                    />
+                  </div>
+                )}
                 <div className="relative">
                   <Mail className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-light)]" />
                   <input
@@ -1116,7 +1163,8 @@ export default function App() {
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     required
-                    placeholder="Password"
+                    placeholder={isSignup ? 'Create password (min 6 chars)' : 'Password'}
+                    minLength={isSignup ? 6 : undefined}
                     className="w-full pl-11 pr-4 py-4 rounded-xl glass-card text-[var(--text)] placeholder-[var(--text-light)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-colors"
                   />
                 </div>
@@ -1127,14 +1175,32 @@ export default function App() {
                 <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
               </div>
             )}
+            {success && (
+              <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> {success}
+              </div>
+            )}
             <button
               disabled={loading}
               className="w-full py-4 rounded-xl bg-[var(--primary-dark)] hover:bg-[var(--primary)] text-[var(--bg)] font-bold disabled:opacity-50 transition-all flex items-center justify-center gap-2 glow-primary"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {loading ? 'Authenticating...' : 'Sign In'}
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (isSignup && loginMode === 'email' ? <UserPlus className="w-4 h-4" /> : null)}
+              {loading ? 'Authenticating...' : (isSignup && loginMode === 'email' ? 'Create Account' : 'Sign In')}
             </button>
           </form>
+
+          {loginMode === 'email' && (
+            <p className="text-center text-sm text-[var(--text-light)] mt-4">
+              {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
+              <button
+                type="button"
+                onClick={() => { setIsSignup(!isSignup); setError(''); }}
+                className="text-[var(--primary)] hover:underline font-medium"
+              >
+                {isSignup ? 'Sign In' : 'Sign Up'}
+              </button>
+            </p>
+          )}
         </div>
       </div>
     );

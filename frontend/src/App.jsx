@@ -37,6 +37,8 @@ import {
   ChevronRight,
   ChevronLeft,
   UserPlus,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 const DEFAULT_API_BASE = typeof window !== 'undefined' ? `${window.location.origin}/api/songs` : 'http://localhost:5000/api/songs';
@@ -570,17 +572,16 @@ function SongCard({ song, isPlaying, onPlay, onEdit, onDelete, viewMode }) {
 
 // ─── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
-  const [apiKey, setApiKey] = useState(localStorage.getItem('azaad_api_key') || '');
   const [accessToken, setAccessToken] = useState(localStorage.getItem('azaad_access_token') || '');
-  const [storedAuthMode, setStoredAuthMode] = useState(localStorage.getItem('azaad_auth_mode') || 'apikey');
+  const [storedAuthMode, setStoredAuthMode] = useState(localStorage.getItem('azaad_auth_mode') || 'email');
   const [isLoggedIn, setIsLoggedIn] = useState(
-    Boolean(localStorage.getItem('azaad_api_key')) || Boolean(localStorage.getItem('azaad_access_token'))
+    Boolean(localStorage.getItem('azaad_access_token'))
   );
-  const [loginMode, setLoginMode] = useState('apikey');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [isSignup, setIsSignup] = useState(false);
   const [signupName, setSignupName] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [view, setView] = useState('library');
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window === 'undefined') return true;
@@ -651,13 +652,8 @@ export default function App() {
   }, []);
 
   const getAuthHeaders = useCallback(() => {
-    const mode = localStorage.getItem('azaad_auth_mode');
-    if (mode === 'email') {
-      const token = localStorage.getItem('azaad_access_token');
-      return token ? { 'Authorization': `Bearer ${token}` } : {};
-    }
-    const key = localStorage.getItem('azaad_api_key');
-    return key ? { 'x-api-key': key } : {};
+    const token = localStorage.getItem('azaad_access_token');
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
   }, []);
 
   const showSuccess = (message, timeout = 2500) => {
@@ -762,18 +758,7 @@ export default function App() {
     setLoading(true);
     setError('');
     try {
-      if (loginMode === 'apikey') {
-        if (!apiKey.trim()) return;
-        const res = await fetch(`${SERVER_BASE}/api/auth-check`, {
-          headers: { 'x-api-key': apiKey.trim() },
-        });
-        if (!res.ok) { setError('Invalid API key.'); return; }
-        localStorage.setItem('azaad_api_key', apiKey.trim());
-        localStorage.setItem('azaad_auth_mode', 'apikey');
-        setApiKey(apiKey.trim());
-        setStoredAuthMode('apikey');
-        setIsLoggedIn(true);
-      } else {
+      {
         if (!loginEmail.trim() || !loginPassword) { setError('Email and password are required.'); return; }
 
         if (isSignup) {
@@ -833,13 +818,11 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('azaad_api_key');
     localStorage.removeItem('azaad_access_token');
     localStorage.removeItem('azaad_refresh_token');
     localStorage.removeItem('azaad_auth_mode');
-    setApiKey('');
     setAccessToken('');
-    setStoredAuthMode('apikey');
+    setStoredAuthMode('email');
     setIsLoggedIn(false);
     setSongs([]);
     setCurrentSong(null);
@@ -1094,80 +1077,49 @@ export default function App() {
             <img src={LOGO_URL} alt="Azaad" className="w-20 h-20 rounded-2xl mx-auto mb-4 object-contain" />
           </div>
 
-          {/* Login mode toggle */}
-          <div className="flex rounded-xl glass-card p-1 mb-6">
-            <button
-              type="button"
-              onClick={() => { setLoginMode('apikey'); setError(''); }}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${
-                loginMode === 'apikey' ? 'bg-[var(--primary-dark)] text-[var(--bg)] glow-primary' : 'text-[var(--text-light)] hover:text-[var(--text)]'
-              }`}
-            >
-              <ShieldCheck className="w-4 h-4" /> API Key
-            </button>
-            <button
-              type="button"
-              onClick={() => { setLoginMode('email'); setError(''); }}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${
-                loginMode === 'email' ? 'bg-[var(--primary-dark)] text-[var(--bg)] glow-primary' : 'text-[var(--text-light)] hover:text-[var(--text)]'
-              }`}
-            >
-              <Mail className="w-4 h-4" /> Email Login
-            </button>
-          </div>
-
           <form onSubmit={handleLogin} className="space-y-4">
-            {loginMode === 'apikey' ? (
+            {isSignup && (
               <div className="relative">
-                <ShieldCheck className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-light)]" />
+                <User className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-light)]" />
                 <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  required
-                  placeholder="Enter API Key"
+                  type="text"
+                  value={signupName}
+                  onChange={(e) => setSignupName(e.target.value)}
+                  placeholder="Full name"
                   className="w-full pl-11 pr-4 py-4 rounded-xl glass-card text-[var(--text)] placeholder-[var(--text-light)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-colors"
                 />
               </div>
-            ) : (
-              <>
-                {isSignup && (
-                  <div className="relative">
-                    <User className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-light)]" />
-                    <input
-                      type="text"
-                      value={signupName}
-                      onChange={(e) => setSignupName(e.target.value)}
-                      placeholder="Full name"
-                      className="w-full pl-11 pr-4 py-4 rounded-xl glass-card text-[var(--text)] placeholder-[var(--text-light)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-colors"
-                    />
-                  </div>
-                )}
-                <div className="relative">
-                  <Mail className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-light)]" />
-                  <input
-                    type="email"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    required
-                    placeholder="Email address"
-                    className="w-full pl-11 pr-4 py-4 rounded-xl glass-card text-[var(--text)] placeholder-[var(--text-light)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-colors"
-                  />
-                </div>
-                <div className="relative">
-                  <Lock className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-light)]" />
-                  <input
-                    type="password"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    required
-                    placeholder={isSignup ? 'Create password (min 6 chars)' : 'Password'}
-                    minLength={isSignup ? 6 : undefined}
-                    className="w-full pl-11 pr-4 py-4 rounded-xl glass-card text-[var(--text)] placeholder-[var(--text-light)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-colors"
-                  />
-                </div>
-              </>
             )}
+            <div className="relative">
+              <Mail className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-light)]" />
+              <input
+                type="email"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                required
+                placeholder="Email address"
+                className="w-full pl-11 pr-4 py-4 rounded-xl glass-card text-[var(--text)] placeholder-[var(--text-light)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-colors"
+              />
+            </div>
+            <div className="relative">
+              <Lock className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-light)]" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                required
+                placeholder={isSignup ? 'Create password (min 6 chars)' : 'Password'}
+                minLength={isSignup ? 6 : undefined}
+                className="w-full pl-11 pr-11 py-4 rounded-xl glass-card text-[var(--text)] placeholder-[var(--text-light)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-light)] hover:text-[var(--text)] transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
             {error && (
               <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
@@ -1182,23 +1134,21 @@ export default function App() {
               disabled={loading}
               className="w-full py-4 rounded-xl bg-[var(--primary-dark)] hover:bg-[var(--primary)] text-[var(--bg)] font-bold disabled:opacity-50 transition-all flex items-center justify-center gap-2 glow-primary"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (isSignup && loginMode === 'email' ? <UserPlus className="w-4 h-4" /> : null)}
-              {loading ? 'Authenticating...' : (isSignup && loginMode === 'email' ? 'Create Account' : 'Sign In')}
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (isSignup ? <UserPlus className="w-4 h-4" /> : null)}
+              {loading ? 'Authenticating...' : (isSignup ? 'Create Account' : 'Sign In')}
             </button>
           </form>
 
-          {loginMode === 'email' && (
-            <p className="text-center text-sm text-[var(--text-light)] mt-4">
-              {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
-              <button
-                type="button"
-                onClick={() => { setIsSignup(!isSignup); setError(''); }}
-                className="text-[var(--primary)] hover:underline font-medium"
-              >
-                {isSignup ? 'Sign In' : 'Sign Up'}
-              </button>
-            </p>
-          )}
+          <p className="text-center text-sm text-[var(--text-light)] mt-4">
+            {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
+            <button
+              type="button"
+              onClick={() => { setIsSignup(!isSignup); setError(''); }}
+              className="text-[var(--primary)] hover:underline font-medium"
+            >
+              {isSignup ? 'Sign In' : 'Sign Up'}
+            </button>
+          </p>
         </div>
       </div>
     );

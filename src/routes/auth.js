@@ -1,5 +1,5 @@
 const express = require('express');
-const { API_KEY, ADMIN_USERNAME, ADMIN_PASSWORD, SUPABASE_URL } = require('../config/env');
+const { API_KEY, ADMIN_USERNAME, ADMIN_PASSWORD, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_PUBLISHABLE_KEY } = require('../config/env');
 const { requireApiKey, ensureSupabaseReady, requireSupabaseUser } = require('../middleware/auth');
 const { supabaseAdmin } = require('../config/supabase');
 
@@ -58,11 +58,15 @@ router.post('/login', async (req, res) => {
 
 router.post('/logout', requireSupabaseUser, async (req, res) => {
   try {
-    if (typeof supabaseAdmin.auth.signOut === 'function') {
-      await supabaseAdmin.auth.signOut(req.supabaseAccessToken);
-    } else if (typeof supabaseAdmin.auth.admin?.signOut === 'function') {
-      await supabaseAdmin.auth.admin.signOut(req.supabaseUser.id);
-    }
+    const apiKey = SUPABASE_SERVICE_ROLE_KEY || SUPABASE_PUBLISHABLE_KEY;
+    await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+      method: 'POST',
+      headers: {
+        apikey: apiKey,
+        Authorization: `Bearer ${req.supabaseAccessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
     return res.json({ ok: true, message: 'Signed out successfully' });
   } catch {
     return res.json({ ok: true, message: 'Signed out' });
@@ -109,15 +113,15 @@ router.post('/reset-password', requireSupabaseUser, async (req, res) => {
   }
 
   let result;
-  if (typeof supabaseAdmin.auth.updateUser === 'function') {
-    result = await supabaseAdmin.auth.updateUser(req.supabaseAccessToken, {
-      password: newPassword,
-    });
-  } else if (typeof supabaseAdmin.auth.admin?.updateUserById === 'function') {
+  if (typeof supabaseAdmin.auth.admin?.updateUserById === 'function') {
     result = await supabaseAdmin.auth.admin.updateUserById(
       req.supabaseUser.id,
       { password: newPassword }
     );
+  } else if (typeof supabaseAdmin.auth.updateUser === 'function') {
+    result = await supabaseAdmin.auth.updateUser(req.supabaseAccessToken, {
+      password: newPassword,
+    });
   } else {
     return res
       .status(500)
@@ -159,15 +163,15 @@ router.post('/change-password', requireSupabaseUser, async (req, res) => {
   }
 
   let result;
-  if (typeof supabaseAdmin.auth.updateUser === 'function') {
-    result = await supabaseAdmin.auth.updateUser(req.supabaseAccessToken, {
-      password: newPassword,
-    });
-  } else if (typeof supabaseAdmin.auth.admin?.updateUserById === 'function') {
+  if (typeof supabaseAdmin.auth.admin?.updateUserById === 'function') {
     result = await supabaseAdmin.auth.admin.updateUserById(
       req.supabaseUser.id,
       { password: newPassword }
     );
+  } else if (typeof supabaseAdmin.auth.updateUser === 'function') {
+    result = await supabaseAdmin.auth.updateUser(req.supabaseAccessToken, {
+      password: newPassword,
+    });
   } else {
     return res
       .status(500)

@@ -582,6 +582,11 @@ export default function App() {
   const [isSignup, setIsSignup] = useState(false);
   const [signupName, setSignupName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [changeCurrentPw, setChangeCurrentPw] = useState('');
+  const [changeNewPw, setChangeNewPw] = useState('');
+  const [changePwLoading, setChangePwLoading] = useState(false);
   const [view, setView] = useState('library');
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window === 'undefined') return true;
@@ -722,6 +727,29 @@ export default function App() {
     }
   }, [refreshAccessToken]);
 
+  useEffect(() => {
+    const tryRefreshOnLoad = async () => {
+      const token = localStorage.getItem('azaad_access_token');
+      if (!token) return;
+      try {
+        const res = await fetch(`${SERVER_BASE}/api/me`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (res.status === 401) {
+          const refreshed = await refreshAccessToken();
+          if (!refreshed) {
+            localStorage.removeItem('azaad_access_token');
+            localStorage.removeItem('azaad_refresh_token');
+            localStorage.removeItem('azaad_auth_mode');
+            setAccessToken('');
+            setIsLoggedIn(false);
+          }
+        }
+      } catch { /* ignore network errors on load */ }
+    };
+    tryRefreshOnLoad();
+  }, [refreshAccessToken]);
+
   useEffect(() => { fetchSongs(); }, [fetchSongs]);
   useEffect(() => { if (isLoggedIn) fetchProfile(); }, [isLoggedIn, fetchProfile]);
   useEffect(() => () => { if (successTimer.current) clearTimeout(successTimer.current); }, []);
@@ -817,7 +845,16 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const token = localStorage.getItem('azaad_access_token');
+    if (token) {
+      try {
+        await fetch(`${SERVER_BASE}/api/logout`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+      } catch { /* proceed with local logout even if server call fails */ }
+    }
     localStorage.removeItem('azaad_access_token');
     localStorage.removeItem('azaad_refresh_token');
     localStorage.removeItem('azaad_auth_mode');
@@ -831,6 +868,68 @@ export default function App() {
   const confirmLogout = () => {
     if (window.confirm('Are you sure you want to sign out?')) {
       handleLogout();
+    }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${SERVER_BASE}/api/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Failed to send reset email.');
+        return;
+      }
+      showSuccess('Password reset link sent! Check your email.');
+      setIsForgotPassword(false);
+      setForgotEmail('');
+    } catch {
+      setError('Could not reach the server.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setChangePwLoading(true);
+    setError('');
+    try {
+      let token = localStorage.getItem('azaad_access_token');
+      const makeRequest = (t) => fetch(`${SERVER_BASE}/api/change-password`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${t}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          currentPassword: changeCurrentPw,
+          newPassword: changeNewPw,
+        }),
+      });
+      let res = await makeRequest(token);
+      if (res.status === 401) {
+        token = await refreshAccessToken();
+        if (token) res = await makeRequest(token);
+      }
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Password change failed.');
+        return;
+      }
+      showSuccess('Password changed successfully!');
+      setChangeCurrentPw('');
+      setChangeNewPw('');
+    } catch {
+      setError('Could not reach the server.');
+    } finally {
+      setChangePwLoading(false);
     }
   };
 
@@ -1069,6 +1168,62 @@ export default function App() {
 
   // ─── Login Screen ──────────────────────────────────────────────────────────
   if (!isLoggedIn) {
+    if (isForgotPassword) {
+      return (
+        <div className="min-h-screen app-bg flex items-center justify-center p-6 relative">
+          <div className="absolute inset-0 bg-[var(--bg)]/80 backdrop-blur-sm" />
+          <div className="w-full max-w-sm relative z-10">
+            <div className="text-center mb-8">
+              <img src={LOGO_URL} alt="Azaad" className="w-20 h-20 rounded-2xl mx-auto mb-4 object-contain" />
+              <h2 className="text-lg font-bold text-[var(--text)]">Reset Password</h2>
+              <p className="text-sm text-[var(--text-light)] mt-1">Enter your email to receive a reset link</p>
+            </div>
+
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div className="relative">
+                <Mail className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-light)]" />
+                <input
+                  type="email"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  required
+                  placeholder="Email address"
+                  className="w-full pl-11 pr-4 py-4 rounded-xl glass-card text-[var(--text)] placeholder-[var(--text-light)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-colors"
+                />
+              </div>
+              {error && (
+                <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
+                </div>
+              )}
+              {success && (
+                <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3">
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> {success}
+                </div>
+              )}
+              <button
+                disabled={loading}
+                className="w-full py-4 rounded-xl bg-[var(--primary-dark)] hover:bg-[var(--primary)] text-[var(--bg)] font-bold disabled:opacity-50 transition-all flex items-center justify-center gap-2 glow-primary"
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                {loading ? 'Sending...' : 'Send Reset Link'}
+              </button>
+            </form>
+
+            <p className="text-center text-sm text-[var(--text-light)] mt-4">
+              <button
+                type="button"
+                onClick={() => { setIsForgotPassword(false); setError(''); setForgotEmail(''); }}
+                className="text-[var(--primary)] hover:underline font-medium"
+              >
+                Back to Sign In
+              </button>
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen app-bg flex items-center justify-center p-6 relative">
         <div className="absolute inset-0 bg-[var(--bg)]/80 backdrop-blur-sm" />
@@ -1120,6 +1275,17 @@ export default function App() {
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+            {!isSignup && (
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => { setIsForgotPassword(true); setError(''); setForgotEmail(loginEmail); }}
+                  className="text-xs text-[var(--primary)] hover:underline"
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
             {error && (
               <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
@@ -1600,6 +1766,7 @@ export default function App() {
 
           {/* ─── Profile View ─────────────────────────────────────────── */}
           {view === 'profile' && (
+            <>
             <form onSubmit={updateProfile} className="max-w-xl mx-auto space-y-6">
               {/* Avatar card */}
               <div className="bg-gradient-to-br from-[var(--primary-dark)]/20 via-[var(--accent)]/10 to-transparent glass-card rounded-2xl p-8 text-center">
@@ -1642,7 +1809,47 @@ export default function App() {
               <button className="w-full py-3.5 rounded-xl bg-[var(--primary-dark)] hover:bg-[var(--primary)] text-[var(--bg)] font-bold flex items-center justify-center gap-2 transition-all glow-primary">
                 <Save className="w-4 h-4" /> Save Profile
               </button>
+            </form>
 
+            {storedAuthMode === 'email' && (
+              <form onSubmit={handleChangePassword} className="max-w-xl mx-auto mt-6 glass-card rounded-2xl p-6 space-y-4">
+                <h3 className="text-sm font-bold text-[var(--text)] flex items-center gap-2">
+                  <Lock className="w-4 h-4" /> Change Password
+                </h3>
+                <div>
+                  <label className="text-xs text-[var(--text-light)] mb-1.5 block">Current Password</label>
+                  <input
+                    type="password"
+                    value={changeCurrentPw}
+                    onChange={(e) => setChangeCurrentPw(e.target.value)}
+                    required
+                    className={inputClass}
+                    placeholder="Enter current password"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-[var(--text-light)] mb-1.5 block">New Password</label>
+                  <input
+                    type="password"
+                    value={changeNewPw}
+                    onChange={(e) => setChangeNewPw(e.target.value)}
+                    required
+                    minLength={6}
+                    className={inputClass}
+                    placeholder="Enter new password (min 6 chars)"
+                  />
+                </div>
+                <button
+                  disabled={changePwLoading}
+                  className="w-full py-3 rounded-xl bg-[var(--accent)]/20 hover:bg-[var(--accent)]/30 text-[var(--accent)] font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                >
+                  {changePwLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+                  {changePwLoading ? 'Updating...' : 'Update Password'}
+                </button>
+              </form>
+            )}
+
+            <div className="max-w-xl mx-auto mt-4">
               <button
                 type="button"
                 onClick={confirmLogout}
@@ -1650,7 +1857,8 @@ export default function App() {
               >
                 <LogOut className="w-4 h-4" /> Sign Out
               </button>
-            </form>
+            </div>
+            </>
           )}
         </div>
       </main>

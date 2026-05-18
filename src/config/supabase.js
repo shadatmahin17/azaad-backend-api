@@ -108,6 +108,89 @@ function createSupabaseAuthFallback(url, apiKey) {
           };
         }
       },
+      async refreshSession({ refresh_token }) {
+        try {
+          const response = await fetch(
+            `${url}/auth/v1/token?grant_type=refresh_token`,
+            {
+              method: 'POST',
+              headers: authHeaders(),
+              body: JSON.stringify({ refresh_token }),
+            }
+          );
+          const { data, error } = await parseResponse(response);
+          if (error) return { data: { session: null, user: null }, error };
+          return {
+            data: {
+              session: data,
+              user: data.user || null,
+            },
+            error: null,
+          };
+        } catch (error) {
+          return {
+            data: { session: null, user: null },
+            error: {
+              message: error.message || 'Unable to reach Supabase Auth API',
+            },
+          };
+        }
+      },
+      async signOut(token) {
+        try {
+          await fetch(`${url}/auth/v1/logout`, {
+            method: 'POST',
+            headers: authHeaders(token),
+          });
+          return { error: null };
+        } catch (error) {
+          return {
+            error: {
+              message: error.message || 'Unable to reach Supabase Auth API',
+            },
+          };
+        }
+      },
+      async resetPasswordForEmail(email, options = {}) {
+        try {
+          const body = { email };
+          if (options.redirectTo) body.redirect_to = options.redirectTo;
+          const response = await fetch(`${url}/auth/v1/recover`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify(body),
+          });
+          const { data, error } = await parseResponse(response);
+          if (error) return { data: null, error };
+          return { data, error: null };
+        } catch (error) {
+          return {
+            data: null,
+            error: {
+              message: error.message || 'Unable to reach Supabase Auth API',
+            },
+          };
+        }
+      },
+      async updateUser(token, attributes) {
+        try {
+          const response = await fetch(`${url}/auth/v1/user`, {
+            method: 'PUT',
+            headers: authHeaders(token),
+            body: JSON.stringify(attributes),
+          });
+          const { data, error } = await parseResponse(response);
+          if (error) return { data: null, error };
+          return { data: { user: data }, error: null };
+        } catch (error) {
+          return {
+            data: null,
+            error: {
+              message: error.message || 'Unable to reach Supabase Auth API',
+            },
+          };
+        }
+      },
     },
     storage: null,
   };

@@ -202,8 +202,14 @@ Accepts multipart form data:
 
 ### Supabase Auth + Profile
 
-- `POST /api/auth/signup`
-- `POST /api/auth/signin`
+- `POST /api/auth/signup` – register a new user
+- `POST /api/auth/signin` – sign in with email/password
+- `POST /api/auth/refresh` – refresh an expired access token (body: `{ "refreshToken": "..." }`)
+- `POST /api/logout` – server-side sign out (**requires bearer token**)
+- `POST /api/forgot-password` – send a password reset email (body: `{ "email": "..." }`)
+- `POST /api/reset-password` – set a new password after reset (**requires bearer token**, body: `{ "password": "..." }`)
+- `POST /api/change-password` – change password while logged in (**requires bearer token**, body: `{ "currentPassword": "...", "newPassword": "..." }`)
+- `GET /api/me` – get current user info from token (**requires bearer token**)
 - `GET /api/profile-view` (**requires bearer token**)
 - `PUT /api/profile` (**requires bearer token**)
 - `POST /api/profile/avatar` (**requires bearer token**, multipart `avatar`)

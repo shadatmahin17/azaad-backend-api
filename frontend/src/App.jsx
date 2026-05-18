@@ -306,6 +306,7 @@ function PlayerBar({ song, songs, onChangeSong, hasBottomNav }) {
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={handleEnded}
+        onError={() => setIsPlaying(false)}
         loop={repeatMode === 'one'}
       />
 

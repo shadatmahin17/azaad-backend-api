@@ -43,6 +43,9 @@ import {
   KeyRound,
   Calendar,
   Disc3,
+  ListMusic,
+  MoreVertical,
+  ArrowLeft,
 } from 'lucide-react';
 
 const DEFAULT_API_BASE = typeof window !== 'undefined' ? `${window.location.origin}/api/songs` : 'http://localhost:5000/api/songs';
@@ -495,7 +498,7 @@ function ArtistCard({ artist, songCount, coverUrl, isActive, onClick }) {
 }
 
 // ─── Song Card ─────────────────────────────────────────────────────────────────
-function SongCard({ song, isPlaying, onPlay, onEdit, onDelete, viewMode }) {
+function SongCard({ song, isPlaying, onPlay, onEdit, onDelete, onAddToPlaylist, viewMode }) {
   if (viewMode === 'list') {
     return (
       <div className={`group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 ${isPlaying ? 'bg-[var(--primary)]/5 border border-[var(--primary)]/10' : 'hover:bg-white/5 border border-transparent'}`}>
@@ -523,6 +526,11 @@ function SongCard({ song, isPlaying, onPlay, onEdit, onDelete, viewMode }) {
         </div>
         <span className="text-xs text-[var(--text-light)]/60 hidden sm:block">{song.category || 'Other'}</span>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onAddToPlaylist && (
+            <button onClick={() => onAddToPlaylist(song)} className="p-2 rounded-lg hover:bg-[var(--primary)]/20 text-[var(--text-light)] hover:text-[var(--primary)] transition-colors" title="Add to playlist">
+              <ListMusic className="w-3.5 h-3.5" />
+            </button>
+          )}
           <button onClick={() => onEdit(song)} className="p-2 rounded-lg hover:bg-white/10 text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
             <Edit3 className="w-3.5 h-3.5" />
           </button>
@@ -562,6 +570,11 @@ function SongCard({ song, isPlaying, onPlay, onEdit, onDelete, viewMode }) {
         <div className="flex items-center justify-between mt-3">
           <span className="text-[10px] text-[var(--text-light)]/60 uppercase tracking-wider">{song.category || 'Other'}{song.genre ? ` · ${song.genre}` : ''}</span>
           <div className="flex items-center gap-1">
+            {onAddToPlaylist && (
+              <button onClick={() => onAddToPlaylist(song)} className="p-1.5 rounded-lg hover:bg-[var(--primary)]/20 text-[var(--text-light)] hover:text-[var(--primary)] transition-colors" title="Add to playlist">
+                <ListMusic className="w-3.5 h-3.5" />
+              </button>
+            )}
             <button onClick={() => onEdit(song)} className="p-1.5 rounded-lg hover:bg-white/10 text-[var(--text-light)] hover:text-[var(--text)] transition-colors" title="Edit">
               <Edit3 className="w-3.5 h-3.5" />
             </button>
@@ -628,6 +641,12 @@ export default function App() {
   const [editLoading, setEditLoading] = useState(false);
 
   const [selectedArtist, setSelectedArtist] = useState(null);
+
+  const [playlists, setPlaylists] = useState([]);
+  const [playlistsLoading, setPlaylistsLoading] = useState(false);
+  const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
+  const [activePlaylist, setActivePlaylist] = useState(null);
+  const [addToPlaylistSong, setAddToPlaylistSong] = useState(null);
 
   const successTimer = useRef(null);
   const searchInputRef = useRef(null);
@@ -741,6 +760,113 @@ export default function App() {
     }
   }, [refreshAccessToken]);
 
+  const fetchPlaylists = useCallback(async () => {
+    try {
+      setPlaylistsLoading(true);
+      const res = await fetch(`${SERVER_BASE}/api/playlists`);
+      if (res.ok) {
+        const data = await res.json();
+        setPlaylists(data.playlists || []);
+      }
+    } catch { /* ignore */ } finally {
+      setPlaylistsLoading(false);
+    }
+  }, []);
+
+  const createPlaylist = async (name, description) => {
+    setError('');
+    try {
+      let token = localStorage.getItem('azaad_access_token');
+      const makeReq = (t) => fetch(`${SERVER_BASE}/api/playlists`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description }),
+      });
+      let res = await makeReq(token);
+      if (res.status === 401) {
+        token = await refreshAccessToken();
+        if (token) res = await makeReq(token);
+      }
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || 'Failed to create playlist.');
+        return null;
+      }
+      const pl = await res.json();
+      setPlaylists((prev) => [pl, ...prev]);
+      showSuccess('Playlist created!');
+      return pl;
+    } catch {
+      setError('Could not reach the server.');
+      return null;
+    }
+  };
+
+  const deletePlaylist = async (id) => {
+    if (!window.confirm('Delete this playlist?')) return;
+    try {
+      let token = localStorage.getItem('azaad_access_token');
+      const makeReq = (t) => fetch(`${SERVER_BASE}/api/playlists/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${t}` },
+      });
+      let res = await makeReq(token);
+      if (res.status === 401) {
+        token = await refreshAccessToken();
+        if (token) res = await makeReq(token);
+      }
+      if (res.ok) {
+        setPlaylists((prev) => prev.filter((p) => p.id !== id));
+        if (activePlaylist?.id === id) setActivePlaylist(null);
+        showSuccess('Playlist deleted.');
+      }
+    } catch { setError('Could not reach the server.'); }
+  };
+
+  const addSongToPlaylist = async (playlistId, songId) => {
+    try {
+      let token = localStorage.getItem('azaad_access_token');
+      const makeReq = (t) => fetch(`${SERVER_BASE}/api/playlists/${playlistId}/songs`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ songId }),
+      });
+      let res = await makeReq(token);
+      if (res.status === 401) {
+        token = await refreshAccessToken();
+        if (token) res = await makeReq(token);
+      }
+      if (res.ok) {
+        const updated = await res.json();
+        setPlaylists((prev) => prev.map((p) => p.id === updated.id ? updated : p));
+        if (activePlaylist?.id === updated.id) setActivePlaylist(updated);
+        showSuccess('Added to playlist!');
+      }
+    } catch { setError('Could not reach the server.'); }
+    setAddToPlaylistSong(null);
+  };
+
+  const removeSongFromPlaylist = async (playlistId, songId) => {
+    try {
+      let token = localStorage.getItem('azaad_access_token');
+      const makeReq = (t) => fetch(`${SERVER_BASE}/api/playlists/${playlistId}/songs/${songId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${t}` },
+      });
+      let res = await makeReq(token);
+      if (res.status === 401) {
+        token = await refreshAccessToken();
+        if (token) res = await makeReq(token);
+      }
+      if (res.ok) {
+        const updated = await res.json();
+        setPlaylists((prev) => prev.map((p) => p.id === updated.id ? updated : p));
+        if (activePlaylist?.id === updated.id) setActivePlaylist(updated);
+        showSuccess('Removed from playlist.');
+      }
+    } catch { setError('Could not reach the server.'); }
+  };
+
   useEffect(() => {
     const tryRefreshOnLoad = async () => {
       const token = localStorage.getItem('azaad_access_token');
@@ -783,6 +909,7 @@ export default function App() {
   }, []);
 
   useEffect(() => { fetchSongs(); }, [fetchSongs]);
+  useEffect(() => { if (isLoggedIn) fetchPlaylists(); }, [isLoggedIn, fetchPlaylists]);
   useEffect(() => { if (isLoggedIn) fetchProfile(); }, [isLoggedIn, fetchProfile]);
   useEffect(() => () => { if (successTimer.current) clearTimeout(successTimer.current); }, []);
 
@@ -1234,6 +1361,7 @@ export default function App() {
 
   const navItems = [
     { id: 'library', label: 'Library', icon: Library },
+    { id: 'playlists', label: 'Playlists', icon: ListMusic },
     { id: 'artists', label: 'Artists', icon: Mic2 },
     { id: 'upload', label: 'Upload', icon: Upload },
     { id: 'profile', label: 'Profile', icon: User },
@@ -1516,7 +1644,7 @@ export default function App() {
           {navItems.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              onClick={() => { setView(id); if (id !== 'library') setSelectedArtist(null); }}
+              onClick={() => { setView(id); if (id !== 'library') setSelectedArtist(null); if (id !== 'playlists') setActivePlaylist(null); }}
               title={label}
               className={`sidebar-nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all mb-1 ${
                 view === id
@@ -1695,6 +1823,7 @@ export default function App() {
                       onPlay={playSong}
                       onEdit={setEditSong}
                       onDelete={deleteTrack}
+                      onAddToPlaylist={setAddToPlaylistSong}
                       viewMode="list"
                     />
                   ))}
@@ -1709,9 +1838,152 @@ export default function App() {
                       onPlay={playSong}
                       onEdit={setEditSong}
                       onDelete={deleteTrack}
+                      onAddToPlaylist={setAddToPlaylistSong}
                       viewMode="grid"
                     />
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ─── Playlists View ────────────────────────────────────────── */}
+          {view === 'playlists' && !activePlaylist && (
+            <div className="space-y-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-[var(--text)]">Your Playlists</h2>
+                  <p className="text-xs text-[var(--text-light)]">{playlists.length} playlist{playlists.length !== 1 ? 's' : ''}</p>
+                </div>
+                <button
+                  onClick={() => setShowCreatePlaylist(true)}
+                  className="px-4 py-2.5 rounded-xl bg-[var(--primary-dark)] hover:bg-[var(--primary)] text-[var(--bg)] text-sm font-semibold inline-flex items-center gap-2 transition-all glow-primary"
+                >
+                  <Plus className="w-4 h-4" /> New Playlist
+                </button>
+              </div>
+
+              {playlistsLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="w-6 h-6 animate-spin text-[var(--primary)]" />
+                </div>
+              ) : playlists.length === 0 ? (
+                <div className="text-center py-20 rounded-2xl glass-card">
+                  <ListMusic className="w-10 h-10 text-[var(--text-light)]/40 mx-auto mb-3" />
+                  <p className="text-[var(--text-light)] mb-4">No playlists yet. Create one to organize your music!</p>
+                  <button
+                    onClick={() => setShowCreatePlaylist(true)}
+                    className="px-5 py-2.5 rounded-xl bg-[var(--primary-dark)] hover:bg-[var(--primary)] text-[var(--bg)] text-sm font-semibold inline-flex items-center gap-2 transition-all glow-primary"
+                  >
+                    <Plus className="w-4 h-4" /> Create your first playlist
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {playlists.map((pl) => {
+                    const plSongs = pl.songIds.map((sid) => songs.find((s) => s.id === sid)).filter(Boolean);
+                    const coverSong = plSongs[0];
+                    return (
+                      <div
+                        key={pl.id}
+                        onClick={() => setActivePlaylist(pl)}
+                        className="group relative rounded-2xl overflow-hidden glass-card cursor-pointer transition-all duration-200 hover:border-[var(--primary)]/20 hover:shadow-lg"
+                      >
+                        <div className="aspect-square bg-gradient-to-br from-[var(--primary)]/20 via-[var(--accent)]/10 to-[var(--primary-dark)]/10 relative overflow-hidden">
+                          {coverSong ? (
+                            <img src={mediaUrl(coverSong.coverUrl)} alt={pl.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <ListMusic className="w-12 h-12 text-[var(--primary)]/30" />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-[var(--card-bg)] via-transparent to-transparent" />
+                          <button
+                            onClick={(e) => { e.stopPropagation(); deletePlaylist(pl.id); }}
+                            className="absolute top-2 right-2 p-2 rounded-lg bg-black/50 text-white/70 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                            title="Delete playlist"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="p-4">
+                          <h4 className="font-semibold truncate text-sm text-[var(--text)]">{pl.name}</h4>
+                          <p className="text-xs text-[var(--text-light)] mt-0.5">{pl.songIds.length} track{pl.songIds.length !== 1 ? 's' : ''}</p>
+                          {pl.description && <p className="text-xs text-[var(--text-light)]/60 mt-1 truncate">{pl.description}</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ─── Playlist Detail View ──────────────────────────────────── */}
+          {view === 'playlists' && activePlaylist && (
+            <div className="space-y-5">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setActivePlaylist(null)}
+                  className="p-2 rounded-lg hover:bg-white/10 text-[var(--text-light)] hover:text-[var(--text)] transition-colors"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-lg font-bold text-[var(--text)] truncate">{activePlaylist.name}</h2>
+                  {activePlaylist.description && <p className="text-xs text-[var(--text-light)] truncate">{activePlaylist.description}</p>}
+                </div>
+                <span className="text-xs text-[var(--text-light)]">{activePlaylist.songIds.length} track{activePlaylist.songIds.length !== 1 ? 's' : ''}</span>
+                {activePlaylist.songIds.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const plSongs = activePlaylist.songIds.map((sid) => songs.find((s) => s.id === sid)).filter(Boolean);
+                      if (plSongs.length > 0) setCurrentSong(plSongs[0]);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-[var(--primary-dark)] hover:bg-[var(--primary)] text-[var(--bg)] text-sm font-semibold inline-flex items-center gap-2 transition-all glow-primary"
+                  >
+                    <Play className="w-4 h-4" /> Play All
+                  </button>
+                )}
+              </div>
+
+              {activePlaylist.songIds.length === 0 ? (
+                <div className="text-center py-16 rounded-2xl glass-card">
+                  <Music2 className="w-10 h-10 text-[var(--text-light)]/40 mx-auto mb-3" />
+                  <p className="text-[var(--text-light)] mb-2">This playlist is empty.</p>
+                  <p className="text-xs text-[var(--text-light)]/60">Go to Library and use the menu on any track to add it here.</p>
+                </div>
+              ) : (
+                <div className="rounded-2xl glass-card divide-y divide-[var(--primary)]/5">
+                  {activePlaylist.songIds.map((sid) => {
+                    const song = songs.find((s) => s.id === sid);
+                    if (!song) return null;
+                    const isPlaying = currentSong?.id === song.id;
+                    return (
+                      <div key={song.id} className={`group flex items-center gap-4 px-4 py-3 transition-all duration-200 ${isPlaying ? 'bg-[var(--primary)]/5' : 'hover:bg-white/5'}`}>
+                        <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
+                          <img src={mediaUrl(song.coverUrl)} alt={song.title} className="w-full h-full object-cover" />
+                          <button
+                            onClick={() => playSong(song)}
+                            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                          >
+                            {isPlaying ? <Pause className="w-4 h-4 text-white" /> : <Play className="w-4 h-4 text-white ml-0.5" />}
+                          </button>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-sm font-medium truncate ${isPlaying ? 'text-[var(--primary)]' : 'text-[var(--text)]'}`}>{song.title}</p>
+                          <p className="text-xs text-[var(--text-light)] truncate">{song.singers || song.artist}</p>
+                        </div>
+                        <button
+                          onClick={() => removeSongFromPlaylist(activePlaylist.id, song.id)}
+                          className="p-2 rounded-lg hover:bg-red-500/20 text-[var(--text-light)] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                          title="Remove from playlist"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -2124,6 +2396,100 @@ export default function App() {
         />
       )}
 
+      {/* Create Playlist Modal */}
+      {showCreatePlaylist && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowCreatePlaylist(false)} />
+          <div className="relative w-full max-w-md glass-card rounded-2xl p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-bold text-[var(--text)] flex items-center gap-2">
+                <ListMusic className="w-5 h-5 text-[var(--primary)]" /> New Playlist
+              </h3>
+              <button onClick={() => setShowCreatePlaylist(false)} className="p-1.5 rounded-lg hover:bg-white/10 text-[var(--text-light)]">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                const name = fd.get('name')?.toString().trim();
+                const description = fd.get('description')?.toString().trim() || '';
+                if (!name) return;
+                const result = await createPlaylist(name, description);
+                if (result) setShowCreatePlaylist(false);
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="text-xs text-[var(--text-light)] mb-1.5 block font-medium">Playlist Name</label>
+                <input name="name" required placeholder="My awesome playlist" className={inputClass} />
+              </div>
+              <div>
+                <label className="text-xs text-[var(--text-light)] mb-1.5 block font-medium">Description (optional)</label>
+                <textarea name="description" rows={2} placeholder="What's this playlist about?" className={`${inputClass} resize-none`} />
+              </div>
+              <button className="w-full py-3.5 rounded-xl bg-[var(--primary-dark)] hover:bg-[var(--primary)] text-[var(--bg)] font-bold flex items-center justify-center gap-2 transition-all glow-primary">
+                <Plus className="w-4 h-4" /> Create Playlist
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add to Playlist Modal */}
+      {addToPlaylistSong && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setAddToPlaylistSong(null)} />
+          <div className="relative w-full max-w-sm glass-card rounded-2xl p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-[var(--text)]">Add to Playlist</h3>
+              <button onClick={() => setAddToPlaylistSong(null)} className="p-1.5 rounded-lg hover:bg-white/10 text-[var(--text-light)]">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-[var(--text-light)] mb-4 truncate">
+              &ldquo;{addToPlaylistSong.title}&rdquo; by {addToPlaylistSong.artist}
+            </p>
+            {playlists.length === 0 ? (
+              <div className="text-center py-6">
+                <p className="text-sm text-[var(--text-light)] mb-3">No playlists yet.</p>
+                <button
+                  onClick={() => { setAddToPlaylistSong(null); setShowCreatePlaylist(true); }}
+                  className="px-4 py-2 rounded-xl bg-[var(--primary-dark)] hover:bg-[var(--primary)] text-[var(--bg)] text-sm font-semibold inline-flex items-center gap-2 transition-all"
+                >
+                  <Plus className="w-4 h-4" /> Create Playlist
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                {playlists.map((pl) => {
+                  const alreadyIn = pl.songIds.includes(addToPlaylistSong.id);
+                  return (
+                    <button
+                      key={pl.id}
+                      disabled={alreadyIn}
+                      onClick={() => addSongToPlaylist(pl.id, addToPlaylistSong.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${alreadyIn ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/5'}`}
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--primary)]/20 to-[var(--accent)]/10 flex items-center justify-center flex-shrink-0">
+                        <ListMusic className="w-4 h-4 text-[var(--primary)]" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-[var(--text)] truncate">{pl.name}</p>
+                        <p className="text-xs text-[var(--text-light)]">{pl.songIds.length} track{pl.songIds.length !== 1 ? 's' : ''}{alreadyIn ? ' · Already added' : ''}</p>
+                      </div>
+                      {!alreadyIn && <Plus className="w-4 h-4 text-[var(--primary)] flex-shrink-0" />}
+                      {alreadyIn && <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Audio Player Bar */}
       {currentSong && (
         <PlayerBar
@@ -2140,7 +2506,7 @@ export default function App() {
           {navItems.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              onClick={() => { setView(id); if (id !== 'library') setSelectedArtist(null); }}
+              onClick={() => { setView(id); if (id !== 'library') setSelectedArtist(null); if (id !== 'playlists') setActivePlaylist(null); }}
               className={`flex flex-col items-center gap-1 py-2.5 px-1 transition-colors touch-target ${
                 view === id ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60'
               }`}

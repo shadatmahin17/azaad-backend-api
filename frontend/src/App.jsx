@@ -419,45 +419,59 @@ function PlayerBar({ song, songs, onChangeSong, hasBottomNav }) {
         </div>
       </div>
 
-      {/* Mobile player layout — compact */}
-      <div className="flex sm:hidden items-center gap-3 px-3 py-2">
-        <div className="relative flex-shrink-0">
-          <img
-            src={mediaUrl(song.coverUrl)}
-            alt={song.title}
-            className={`w-11 h-11 rounded-lg object-cover border border-[var(--primary)]/20 ${isPlaying ? 'shadow-[0_0_12px_rgba(83,242,224,0.15)]' : ''}`}
-          />
-          {isPlaying && (
-            <div className="absolute -bottom-0.5 -right-0.5 flex items-end gap-[1.5px] bg-[var(--card-bg)] rounded px-0.5 py-0.5">
-              <span className="w-[2px] rounded-full bg-[var(--primary)] eq-bar-1" />
-              <span className="w-[2px] rounded-full bg-[var(--primary)] eq-bar-2" />
-              <span className="w-[2px] rounded-full bg-[var(--primary)] eq-bar-3" />
-            </div>
-          )}
+      {/* Mobile player layout */}
+      <div className="sm:hidden px-3 pt-2 pb-2.5">
+        {/* Track info + controls row */}
+        <div className="flex items-center gap-3">
+          <div className="relative flex-shrink-0">
+            <img
+              src={mediaUrl(song.coverUrl)}
+              alt={song.title}
+              className={`w-12 h-12 rounded-xl object-cover border border-[var(--primary)]/20 ${isPlaying ? 'shadow-[0_0_14px_rgba(83,242,224,0.15)]' : ''}`}
+            />
+            {isPlaying && (
+              <div className="absolute -bottom-0.5 -right-0.5 flex items-end gap-[1.5px] bg-[var(--card-bg)] rounded px-0.5 py-0.5">
+                <span className="w-[2px] rounded-full bg-[var(--primary)] eq-bar-1" />
+                <span className="w-[2px] rounded-full bg-[var(--primary)] eq-bar-2" />
+                <span className="w-[2px] rounded-full bg-[var(--primary)] eq-bar-3" />
+              </div>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-semibold text-[var(--text)] truncate leading-tight">{song.title}</p>
+            <p className="text-[11px] text-[var(--text-light)] truncate mt-0.5">{song.singers || song.artist}</p>
+          </div>
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            <button
+              onClick={() => setLiked(!liked)}
+              className={`p-2 rounded-full transition-colors ${liked ? 'text-red-400' : 'text-[var(--text-light)]/60'}`}
+            >
+              <Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />
+            </button>
+            <button onClick={playPrev} className="p-2 text-[var(--text-light)]/70 active:text-[var(--text)] transition-colors">
+              <SkipBack className="w-5 h-5" />
+            </button>
+            <button
+              onClick={togglePlay}
+              className="w-11 h-11 rounded-full bg-[var(--primary)] text-[var(--bg)] flex items-center justify-center active:scale-95 transition-transform glow-primary"
+            >
+              {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+            </button>
+            <button onClick={playNext} className="p-2 text-[var(--text-light)]/70 active:text-[var(--text)] transition-colors">
+              <SkipForward className="w-5 h-5" />
+            </button>
+          </div>
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold text-[var(--text)] truncate">{song.title}</p>
-          <p className="text-[10px] text-[var(--text-light)] truncate">{song.singers || song.artist}</p>
-        </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <button
-            onClick={() => setLiked(!liked)}
-            className={`p-1.5 rounded-full transition-colors ${liked ? 'text-red-400' : 'text-[var(--text-light)]'}`}
-          >
-            <Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />
-          </button>
-          <button onClick={playPrev} className="p-1.5 text-[var(--text-light)] active:text-[var(--text)] transition-colors touch-target">
-            <SkipBack className="w-4 h-4" />
-          </button>
-          <button
-            onClick={togglePlay}
-            className="w-10 h-10 rounded-full bg-[var(--primary)] text-[var(--bg)] flex items-center justify-center active:scale-95 transition-transform glow-primary touch-target"
-          >
-            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
-          </button>
-          <button onClick={playNext} className="p-1.5 text-[var(--text-light)] active:text-[var(--text)] transition-colors touch-target">
-            <SkipForward className="w-4 h-4" />
-          </button>
+        {/* Progress bar + time */}
+        <div className="flex items-center gap-2 mt-2">
+          <span className="text-[9px] text-[var(--text-light)]/60 tabular-nums w-7 text-right">{formatTime(currentTime)}</span>
+          <div className="flex-1 h-1 rounded-full bg-white/10 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[var(--primary-dark)] to-[var(--primary)] transition-[width] duration-150"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <span className="text-[9px] text-[var(--text-light)]/60 tabular-nums w-7">{formatTime(duration)}</span>
         </div>
       </div>
     </div>
@@ -1599,7 +1613,7 @@ export default function App() {
   }
 
   // Calculate bottom padding based on player + mobile nav
-  const bottomPad = currentSong ? 'pb-44 md:pb-24' : 'pb-20 md:pb-0';
+  const bottomPad = currentSong ? 'pb-48 md:pb-24' : 'pb-20 md:pb-0';
 
   // ─── Main App Layout ──────────────────────────────────────────────────────
   return (

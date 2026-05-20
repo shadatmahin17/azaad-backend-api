@@ -53,6 +53,11 @@ const SONGS_FILE = process.env.SONGS_FILE
     ? path.join(DATA_DIR, 'songs.json')
     : path.join(ROOT_DIR, 'songs.json');
 const LEGACY_SONGS_FILE = path.join(ROOT_DIR, 'data', 'songs.json');
+const PLAYLISTS_FILE = process.env.PLAYLISTS_FILE
+  ? path.resolve(process.env.PLAYLISTS_FILE)
+  : DATA_DIR
+    ? path.join(DATA_DIR, 'playlists.json')
+    : path.join(ROOT_DIR, 'playlists.json');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
@@ -79,6 +84,7 @@ module.exports = {
   COVER_DIR,
   SONGS_FILE,
   LEGACY_SONGS_FILE,
+  PLAYLISTS_FILE,
   PUBLIC_DIR,
   SUPABASE_URL,
   SUPABASE_PUBLISHABLE_KEY,

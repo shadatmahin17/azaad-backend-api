@@ -13,6 +13,7 @@ const {
   COVER_DIR,
   SONGS_FILE,
   LEGACY_SONGS_FILE,
+  PLAYLISTS_FILE,
   PUBLIC_DIR,
   ALLOWED_ORIGINS,
 } = require('./src/config/env');
@@ -20,6 +21,7 @@ const {
 const songRoutes = require('./src/routes/songs');
 const authRoutes = require('./src/routes/auth');
 const profileRoutes = require('./src/routes/profile');
+const playlistRoutes = require('./src/routes/playlists');
 
 const app = express();
 
@@ -84,6 +86,10 @@ if (!fs.existsSync(SONGS_FILE)) {
   }
 }
 
+if (!fs.existsSync(PLAYLISTS_FILE)) {
+  fs.writeFileSync(PLAYLISTS_FILE, '[]', 'utf8');
+}
+
 // --- API info endpoint ---
 
 app.get('/api', (req, res) => {
@@ -103,6 +109,12 @@ app.get('/api', (req, res) => {
       resetPassword: 'POST /api/reset-password',
       changePassword: 'POST /api/change-password',
       me: 'GET /api/me',
+      playlists: 'GET /api/playlists',
+      createPlaylist: 'POST /api/playlists',
+      updatePlaylist: 'PUT /api/playlists/:id',
+      deletePlaylist: 'DELETE /api/playlists/:id',
+      addToPlaylist: 'POST /api/playlists/:id/songs',
+      removeFromPlaylist: 'DELETE /api/playlists/:id/songs/:songId',
       profile: 'GET /api/profile-view',
       updateProfile: 'PUT /api/profile',
       uploadAvatar: 'POST /api/profile/avatar',
@@ -130,6 +142,7 @@ app.get('/api/health', (req, res) => {
 // --- Routes ---
 
 app.use('/api/songs', songRoutes);
+app.use('/api/playlists', playlistRoutes);
 app.use('/api', authRoutes);
 app.use('/api', profileRoutes);
 

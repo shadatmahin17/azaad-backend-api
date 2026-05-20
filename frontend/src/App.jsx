@@ -1712,11 +1712,11 @@ export default function App() {
 
       {/* Main content */}
       <main className="flex-1 min-w-0 relative z-10">
-        {/* Top bar */}
-        <header className="sticky top-0 z-20 bg-[var(--bg)]/80 backdrop-blur-xl border-b border-[var(--primary)]/8 px-4 md:px-6 py-3 md:py-4 relative flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0 max-w-[55%] md:max-w-none">
+        {/* Top bar — Desktop */}
+        <header className="hidden md:flex sticky top-0 z-20 bg-[var(--bg)]/80 backdrop-blur-xl border-b border-[var(--primary)]/8 px-6 py-4 items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             {selectedArtist ? (
-              <h2 className="text-base md:text-lg font-bold text-[var(--text)] truncate">
+              <h2 className="text-lg font-bold text-[var(--text)] truncate">
                 <span className="flex items-center gap-2 min-w-0">
                   <button onClick={() => setSelectedArtist(null)} className="text-[var(--text-light)] hover:text-[var(--text)] transition-colors flex-shrink-0">Library</button>
                   <ChevronRight className="w-4 h-4 text-[var(--text-light)] flex-shrink-0" />
@@ -1724,28 +1724,47 @@ export default function App() {
                 </span>
               </h2>
             ) : (
-              <h2 className="hidden md:block text-lg font-bold text-[var(--text)]">
+              <h2 className="text-lg font-bold text-[var(--text)]">
                 {navItems.find((n) => n.id === view)?.label || 'Library'}
               </h2>
             )}
           </div>
-
-          {/* Mobile centered logo (hidden when artist breadcrumb is shown to avoid overlap) */}
-          {!selectedArtist && (
-            <img
-              src={LOGO_URL}
-              alt="Azaad"
-              className="md:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-lg object-contain pointer-events-none"
-            />
-          )}
-
           <button onClick={fetchSongs} className="p-2 rounded-lg hover:bg-white/10 text-[var(--text-light)] hover:text-[var(--text)] transition-colors flex-shrink-0" title="Refresh">
             <RefreshCw className={`w-4 h-4 ${initLoading ? 'animate-spin' : ''}`} />
           </button>
         </header>
 
+        {/* Top bar — Mobile */}
+        <header className="md:hidden sticky top-0 z-20 bg-[var(--bg)]/80 backdrop-blur-xl border-b border-[var(--primary)]/8">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <img src={LOGO_URL} alt="Azaad" className="w-8 h-8 rounded-lg object-contain flex-shrink-0" />
+              {selectedArtist ? (
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <button onClick={() => setSelectedArtist(null)} className="text-xs text-[var(--text-light)] hover:text-[var(--text)] transition-colors flex-shrink-0">Library</button>
+                  <ChevronRight className="w-3 h-3 text-[var(--text-light)]/50 flex-shrink-0" />
+                  <span className="text-xs font-semibold text-[var(--primary)] truncate">{selectedArtist}</span>
+                </div>
+              ) : (
+                <div className="min-w-0">
+                  <h2 className="text-sm font-bold text-[var(--text)] truncate">{navItems.find((n) => n.id === view)?.label || 'Library'}</h2>
+                  <p className="text-[10px] text-[var(--text-light)]/60 truncate">Hey, {profile.adminName.split(' ')[0]}</p>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button onClick={fetchSongs} className="p-2 rounded-xl hover:bg-white/10 text-[var(--text-light)] hover:text-[var(--text)] transition-colors" title="Refresh">
+                <RefreshCw className={`w-4 h-4 ${initLoading ? 'animate-spin' : ''}`} />
+              </button>
+              <button onClick={() => setView('profile')} className="p-1 rounded-xl hover:bg-white/10 transition-colors" title="Profile">
+                <img src={profile.adminPhoto} alt="" className="w-7 h-7 rounded-lg object-cover border border-[var(--primary)]/10" />
+              </button>
+            </div>
+          </div>
+        </header>
+
         {/* Notifications */}
-        <div className="px-6 pt-4 space-y-2">
+        <div className="px-4 md:px-6 pt-3 md:pt-4 space-y-2">
           {success && (
             <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3">
               <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> {success}
@@ -1759,7 +1778,7 @@ export default function App() {
           )}
         </div>
 
-        <div className="p-4 md:p-6">
+        <div className="px-3 py-3 md:p-6">
           {/* ─── Library View ──────────────────────────────────────────── */}
           {view === 'library' && (
             <div className="space-y-5">
@@ -1829,7 +1848,7 @@ export default function App() {
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
                   {filteredSongs.map((song) => (
                     <SongCard
                       key={song.id}
@@ -1879,7 +1898,7 @@ export default function App() {
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
                   {playlists.map((pl) => {
                     const plSongs = pl.songIds.map((sid) => songs.find((s) => s.id === sid)).filter(Boolean);
                     const coverSong = plSongs[0];
@@ -1994,8 +2013,8 @@ export default function App() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xl font-bold text-[var(--text)]">All Artists</h3>
-                  <p className="text-sm text-[var(--text-light)] mt-1">{artists.length} {artists.length === 1 ? 'artist' : 'artists'} in your library</p>
+                  <h3 className="text-lg md:text-xl font-bold text-[var(--text)]">All Artists</h3>
+                  <p className="text-xs md:text-sm text-[var(--text-light)] mt-0.5 md:mt-1">{artists.length} {artists.length === 1 ? 'artist' : 'artists'} in your library</p>
                 </div>
               </div>
 
@@ -2005,7 +2024,7 @@ export default function App() {
                   <p className="text-[var(--text-light)]">No artists yet. Upload some tracks to see artists here.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
                   {artists.map((a) => (
                     <ArtistCard
                       key={a.name}
@@ -2504,10 +2523,10 @@ export default function App() {
       <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden mobile-bottom-nav">
         <div className="relative player-glass border-t border-[var(--primary)]/10">
           <div className="flex items-end justify-around px-2 pb-1 pt-1.5">
-            {/* Left: Profile */}
-            {(() => { const item = navItems.find(n => n.id === 'profile'); const Icon = item.icon; const active = view === 'profile'; return (
+            {/* Left: Library */}
+            {(() => { const item = navItems.find(n => n.id === 'library'); const Icon = item.icon; const active = view === 'library'; return (
               <button
-                onClick={() => { setView('profile'); setSelectedArtist(null); setActivePlaylist(null); }}
+                onClick={() => { setView('library'); setActivePlaylist(null); }}
                 className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all ${active ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60'}`}
               >
                 <div className={`p-1.5 rounded-xl transition-all ${active ? 'bg-[var(--primary)]/15' : ''}`}>
@@ -2558,10 +2577,10 @@ export default function App() {
               </button>
             ); })()}
 
-            {/* Right: Library */}
-            {(() => { const item = navItems.find(n => n.id === 'library'); const Icon = item.icon; const active = view === 'library'; return (
+            {/* Right: Profile */}
+            {(() => { const item = navItems.find(n => n.id === 'profile'); const Icon = item.icon; const active = view === 'profile'; return (
               <button
-                onClick={() => { setView('library'); setActivePlaylist(null); }}
+                onClick={() => { setView('profile'); setSelectedArtist(null); setActivePlaylist(null); }}
                 className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all ${active ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60'}`}
               >
                 <div className={`p-1.5 rounded-xl transition-all ${active ? 'bg-[var(--primary)]/15' : ''}`}>

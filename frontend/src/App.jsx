@@ -2527,7 +2527,7 @@ export default function App() {
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden mobile-bottom-nav" style={{ overflow: 'visible' }}>
         <div className="relative player-glass border-t border-[var(--primary)]/10" style={{ overflow: 'visible' }}>
-          <div className="flex items-end justify-around px-2 pb-1 pt-1.5" style={{ overflow: 'visible' }}>
+          <div className="flex items-end justify-around px-2 pb-0.5 pt-1" style={{ overflow: 'visible' }}>
             {/* Left: Library */}
             {(() => { const item = navItems.find(n => n.id === 'library'); const Icon = item.icon; const active = view === 'library'; return (
               <button

@@ -173,7 +173,7 @@ select option {
 /* Mobile bottom nav safe area */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .mobile-bottom-nav {
-    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
   }
   .player-mobile-offset {
     bottom: calc(3.5rem + env(safe-area-inset-bottom));

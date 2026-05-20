@@ -2501,20 +2501,76 @@ export default function App() {
       )}
 
       {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden player-glass border-t border-[var(--primary)]/10 mobile-bottom-nav">
-        <div className="grid grid-cols-5">
-          {navItems.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => { setView(id); if (id !== 'library') setSelectedArtist(null); if (id !== 'playlists') setActivePlaylist(null); }}
-              className={`flex flex-col items-center gap-1 py-2.5 px-1 transition-colors touch-target ${
-                view === id ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60'
-              }`}
-            >
-              <Icon className="w-5 h-5" />
-              <span className="text-[10px] font-medium truncate max-w-full">{label}</span>
-            </button>
-          ))}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden mobile-bottom-nav">
+        <div className="relative player-glass border-t border-[var(--primary)]/10">
+          <div className="flex items-end justify-around px-2 pb-1 pt-1.5">
+            {/* Left: Profile */}
+            {(() => { const item = navItems.find(n => n.id === 'profile'); const Icon = item.icon; const active = view === 'profile'; return (
+              <button
+                onClick={() => { setView('profile'); setSelectedArtist(null); setActivePlaylist(null); }}
+                className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all ${active ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60'}`}
+              >
+                <div className={`p-1.5 rounded-xl transition-all ${active ? 'bg-[var(--primary)]/15' : ''}`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] font-medium">{item.label}</span>
+              </button>
+            ); })()}
+
+            {/* Playlists */}
+            {(() => { const item = navItems.find(n => n.id === 'playlists'); const Icon = item.icon; const active = view === 'playlists'; return (
+              <button
+                onClick={() => { setView('playlists'); setSelectedArtist(null); }}
+                className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all ${active ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60'}`}
+              >
+                <div className={`p-1.5 rounded-xl transition-all ${active ? 'bg-[var(--primary)]/15' : ''}`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] font-medium">{item.label}</span>
+              </button>
+            ); })()}
+
+            {/* Center: Upload (raised FAB) */}
+            <div className="flex flex-col items-center -mt-5">
+              <button
+                onClick={() => { setView('upload'); setSelectedArtist(null); setActivePlaylist(null); }}
+                className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all ${
+                  view === 'upload'
+                    ? 'bg-[var(--primary)] text-[var(--bg)] shadow-[0_0_20px_rgba(83,242,224,0.3)] scale-105'
+                    : 'bg-[var(--primary-dark)] text-[var(--bg)] hover:bg-[var(--primary)] hover:shadow-[0_0_20px_rgba(83,242,224,0.2)]'
+                }`}
+              >
+                <Upload className="w-6 h-6" />
+              </button>
+              <span className={`text-[10px] font-medium mt-1 transition-colors ${view === 'upload' ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60'}`}>Upload</span>
+            </div>
+
+            {/* Artists */}
+            {(() => { const item = navItems.find(n => n.id === 'artists'); const Icon = item.icon; const active = view === 'artists'; return (
+              <button
+                onClick={() => { setView('artists'); setSelectedArtist(null); setActivePlaylist(null); }}
+                className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all ${active ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60'}`}
+              >
+                <div className={`p-1.5 rounded-xl transition-all ${active ? 'bg-[var(--primary)]/15' : ''}`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] font-medium">{item.label}</span>
+              </button>
+            ); })()}
+
+            {/* Right: Library */}
+            {(() => { const item = navItems.find(n => n.id === 'library'); const Icon = item.icon; const active = view === 'library'; return (
+              <button
+                onClick={() => { setView('library'); setActivePlaylist(null); }}
+                className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all ${active ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60'}`}
+              >
+                <div className={`p-1.5 rounded-xl transition-all ${active ? 'bg-[var(--primary)]/15' : ''}`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <span className="text-[10px] font-medium">{item.label}</span>
+              </button>
+            ); })()}
+          </div>
         </div>
       </nav>
     </div>

@@ -2515,14 +2515,6 @@ export default function App() {
               <span className="text-[10px] font-medium truncate max-w-full">{label}</span>
             </button>
           ))}
-          <button
-            onClick={confirmLogout}
-            aria-label="Sign out"
-            className="flex flex-col items-center gap-1 py-2.5 px-1 transition-colors touch-target text-[var(--text-light)]/60 hover:text-red-400"
-          >
-            <LogOut className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Sign Out</span>
-          </button>
         </div>
       </nav>
     </div>

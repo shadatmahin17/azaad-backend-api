@@ -303,6 +303,42 @@ function PlayerBar({ song, songs, onChangeSong, hasBottomNav }) {
     setRepeatMode((prev) => prev === 'off' ? 'all' : prev === 'all' ? 'one' : 'off');
   };
 
+  // Media Session API — show song info in OS notification / lock screen
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    const coverUrl = mediaUrl(song.coverUrl);
+    const artwork = coverUrl ? [
+      { src: coverUrl, sizes: '96x96', type: 'image/jpeg' },
+      { src: coverUrl, sizes: '128x128', type: 'image/jpeg' },
+      { src: coverUrl, sizes: '256x256', type: 'image/jpeg' },
+      { src: coverUrl, sizes: '512x512', type: 'image/jpeg' },
+    ] : [];
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: song.title || 'Unknown',
+      artist: song.singers || song.artist || 'Unknown Artist',
+      album: song.category || 'Azaad Music',
+      artwork,
+    });
+  }, [song.id, song.title, song.singers, song.artist, song.coverUrl, song.category]);
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    navigator.mediaSession.setActionHandler('play', () => {
+      if (audioRef.current) audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+    });
+    navigator.mediaSession.setActionHandler('pause', () => {
+      if (audioRef.current) { audioRef.current.pause(); setIsPlaying(false); }
+    });
+    navigator.mediaSession.setActionHandler('previoustrack', playPrev);
+    navigator.mediaSession.setActionHandler('nexttrack', playNext);
+    navigator.mediaSession.setActionHandler('seekto', (details) => {
+      if (audioRef.current && details.seekTime != null) {
+        audioRef.current.currentTime = details.seekTime;
+        setCurrentTime(details.seekTime);
+      }
+    });
+  });
+
   const progress = duration ? (currentTime / duration) * 100 : 0;
 
   return (

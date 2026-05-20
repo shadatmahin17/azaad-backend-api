@@ -306,7 +306,7 @@ function PlayerBar({ song, songs, onChangeSong, hasBottomNav }) {
   const progress = duration ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className={`fixed left-0 right-0 z-50 player-glass border-t border-[var(--primary)]/10 ${hasBottomNav ? 'bottom-14 md:bottom-0' : 'bottom-0'}`}>
+    <div className={`fixed left-0 right-0 z-50 player-glass border-t border-[var(--primary)]/10 ${hasBottomNav ? 'bottom-[4.5rem] md:bottom-0' : 'bottom-0'}`}>
       <audio
         ref={audioRef}
         src={mediaUrl(song.audioUrl)}
@@ -1599,7 +1599,7 @@ export default function App() {
   }
 
   // Calculate bottom padding based on player + mobile nav
-  const bottomPad = currentSong ? 'pb-40 md:pb-24' : 'pb-16 md:pb-0';
+  const bottomPad = currentSong ? 'pb-44 md:pb-24' : 'pb-20 md:pb-0';
 
   // ─── Main App Layout ──────────────────────────────────────────────────────
   return (
@@ -1737,8 +1737,8 @@ export default function App() {
         {/* Top bar — Mobile */}
         <header className="md:hidden sticky top-0 z-20 bg-[var(--bg)]/80 backdrop-blur-xl border-b border-[var(--primary)]/8">
           <div className="flex items-center justify-between px-4 py-3">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <img src={LOGO_URL} alt="Azaad" className="w-8 h-8 rounded-lg object-contain flex-shrink-0" />
+            {/* Left: section info */}
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               {selectedArtist ? (
                 <div className="flex items-center gap-1.5 min-w-0">
                   <button onClick={() => setSelectedArtist(null)} className="text-xs text-[var(--text-light)] hover:text-[var(--text)] transition-colors flex-shrink-0">Library</button>
@@ -1752,7 +1752,12 @@ export default function App() {
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-1 flex-shrink-0">
+
+            {/* Center: Logo */}
+            <img src={LOGO_URL} alt="Azaad" className="w-9 h-9 rounded-lg object-contain flex-shrink-0" />
+
+            {/* Right: actions */}
+            <div className="flex items-center gap-1 flex-shrink-0 flex-1 justify-end">
               <button onClick={fetchSongs} className="p-2 rounded-xl hover:bg-white/10 text-[var(--text-light)] hover:text-[var(--text)] transition-colors" title="Refresh">
                 <RefreshCw className={`w-4 h-4 ${initLoading ? 'animate-spin' : ''}`} />
               </button>
@@ -2520,9 +2525,9 @@ export default function App() {
       )}
 
       {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden mobile-bottom-nav">
-        <div className="relative player-glass border-t border-[var(--primary)]/10">
-          <div className="flex items-end justify-around px-2 pb-1 pt-1.5">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden mobile-bottom-nav" style={{ overflow: 'visible' }}>
+        <div className="relative player-glass border-t border-[var(--primary)]/10" style={{ overflow: 'visible' }}>
+          <div className="flex items-end justify-around px-2 pb-1 pt-1.5" style={{ overflow: 'visible' }}>
             {/* Left: Library */}
             {(() => { const item = navItems.find(n => n.id === 'library'); const Icon = item.icon; const active = view === 'library'; return (
               <button

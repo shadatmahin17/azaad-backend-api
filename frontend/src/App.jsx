@@ -267,7 +267,7 @@ function PlayerBar({ song, songs, onChangeSong, hasBottomNav }) {
     }
   };
 
-  const playNext = () => {
+  const playNext = useCallback(() => {
     if (isShuffled && songs.length > 1) {
       let next;
       do { next = songs[Math.floor(Math.random() * songs.length)]; } while (next.id === song.id);
@@ -277,9 +277,9 @@ function PlayerBar({ song, songs, onChangeSong, hasBottomNav }) {
     const idx = songs.findIndex((s) => s.id === song.id);
     if (idx < songs.length - 1) onChangeSong(songs[idx + 1]);
     else if (songs.length > 0) onChangeSong(songs[0]);
-  };
+  }, [isShuffled, songs, song.id, onChangeSong]);
 
-  const playPrev = () => {
+  const playPrev = useCallback(() => {
     if (audioRef.current && audioRef.current.currentTime > 3) {
       audioRef.current.currentTime = 0;
       return;
@@ -287,7 +287,7 @@ function PlayerBar({ song, songs, onChangeSong, hasBottomNav }) {
     const idx = songs.findIndex((s) => s.id === song.id);
     if (idx > 0) onChangeSong(songs[idx - 1]);
     else if (songs.length > 0) onChangeSong(songs[songs.length - 1]);
-  };
+  }, [songs, song.id, onChangeSong]);
 
   const handleEnded = () => {
     if (repeatMode === 'one') {
@@ -302,6 +302,54 @@ function PlayerBar({ song, songs, onChangeSong, hasBottomNav }) {
   const cycleRepeat = () => {
     setRepeatMode((prev) => prev === 'off' ? 'all' : prev === 'all' ? 'one' : 'off');
   };
+
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
+
+    const cover = mediaUrl(song.coverUrl);
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: song.title || 'Untitled',
+      artist: song.singers || song.artist || 'Unknown artist',
+      album: 'Azaad Admin',
+      artwork: cover
+        ? [
+            { src: cover, sizes: '96x96', type: 'image/jpeg' },
+            { src: cover, sizes: '128x128', type: 'image/jpeg' },
+            { src: cover, sizes: '192x192', type: 'image/jpeg' },
+            { src: cover, sizes: '256x256', type: 'image/jpeg' },
+            { src: cover, sizes: '384x384', type: 'image/jpeg' },
+            { src: cover, sizes: '512x512', type: 'image/jpeg' },
+          ]
+        : [],
+    });
+
+    navigator.mediaSession.setActionHandler('play', () => {
+      if (!audioRef.current) return;
+      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+    });
+    navigator.mediaSession.setActionHandler('pause', () => {
+      if (!audioRef.current) return;
+      audioRef.current.pause();
+      setIsPlaying(false);
+    });
+    navigator.mediaSession.setActionHandler('previoustrack', playPrev);
+    navigator.mediaSession.setActionHandler('nexttrack', playNext);
+  }, [song.id, song.title, song.singers, song.artist, song.coverUrl, playNext, playPrev]);
+
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
+    navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+  }, [isPlaying]);
+
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !('mediaSession' in navigator) || !('setPositionState' in navigator.mediaSession)) return;
+    if (!duration || Number.isNaN(duration)) return;
+    navigator.mediaSession.setPositionState({
+      duration,
+      playbackRate: audioRef.current?.playbackRate || 1,
+      position: currentTime,
+    });
+  }, [currentTime, duration]);
 
   const progress = duration ? (currentTime / duration) * 100 : 0;
 

@@ -306,7 +306,11 @@ function PlayerBar({ song, songs, onChangeSong, hasBottomNav }) {
   const progress = duration ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className={`fixed left-0 right-0 z-50 player-glass border-t border-[var(--primary)]/10 ${hasBottomNav ? 'bottom-[4.5rem] md:bottom-0' : 'bottom-0'}`}>
+    <div
+      className={`fixed left-0 right-0 z-50 player-glass border-t border-[var(--primary)]/10 overflow-hidden ${hasBottomNav ? 'bottom-[4.5rem] md:bottom-0' : 'bottom-0'}`}
+      style={song.coverUrl ? { backgroundImage: `url(${mediaUrl(song.coverUrl)})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+    >
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(12,16,18,0.82),rgba(12,16,18,0.92))] backdrop-blur-[3px]" />
       <audio
         ref={audioRef}
         src={mediaUrl(song.audioUrl)}
@@ -317,6 +321,7 @@ function PlayerBar({ song, songs, onChangeSong, hasBottomNav }) {
         loop={repeatMode === 'one'}
       />
 
+      <div className="relative z-10">
       {/* Seek bar */}
       <div
         ref={seekBarRef}
@@ -474,6 +479,7 @@ function PlayerBar({ song, songs, onChangeSong, hasBottomNav }) {
           <span className="text-[9px] text-[var(--text-light)]/60 tabular-nums w-7">{formatTime(duration)}</span>
         </div>
       </div>
+    </div>
     </div>
   );
 }

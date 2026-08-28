@@ -3,7 +3,7 @@ const { API_KEY } = require('../config/env');
 const { supabaseAdmin } = require('../config/supabase');
 
 /**
- * Safely compares two strings using a constant-time comparison to prevent timing attacks.
+ * Safely compares two strings using constant-time comparison to prevent timing attacks.
  */
 function safeCompare(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string') {
@@ -22,8 +22,9 @@ function safeCompare(a, b) {
  */
 function extractBearerToken(req) {
   const authHeader = req.headers.authorization || '';
+  if (typeof authHeader !== 'string') return '';
   const match = authHeader.match(/^Bearer\s+(.+)$/i);
-  return match ? match.trim() : '';
+  return match && match ? match.trim() : '';
 }
 
 function ensureSupabaseReady(res) {
@@ -103,7 +104,6 @@ function requireApiKey(req, res, next) {
 async function requireAuth(req, res, next) {
   const clientKey = req.headers['x-api-key'];
 
-  // Check API key if provided and configured
   if (API_KEY && typeof API_KEY === 'string' && API_KEY.trim() !== '') {
     if (clientKey && safeCompare(clientKey, API_KEY)) {
       return next();

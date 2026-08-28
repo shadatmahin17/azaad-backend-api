@@ -1,8 +1,33 @@
+const crypto = require('crypto');
 const { API_KEY } = require('../config/env');
 const { supabaseAdmin } = require('../config/supabase');
 
+/**
+ * Safely compares two strings using a constant-time comparison to prevent timing attacks.
+ */
+function safeCompare(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') {
+    return false;
+  }
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
+/**
+ * Extracts a Bearer token from the Authorization header (case-insensitive).
+ */
+function extractBearerToken(req) {
+  const authHeader = req.headers.authorization || '';
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  return match ? match.trim() : '';
+}
+
 function ensureSupabaseReady(res) {
-  if (!supabaseAdmin) {
+  if (!supabaseAdmin || !supabaseAdmin.auth) {
     res.status(500).json({
       error:
         'Supabase is not configured. Set env values and install Supabase packages first.',
@@ -27,63 +52,74 @@ function ensureSupabaseDataReady(res) {
   return true;
 }
 
-async function requireSupabaseUser(req, res, next) {
-  if (!ensureSupabaseReady(res)) return;
+/**
+ * Validates the Supabase Bearer token and attaches user information to req.
+ */
+async function authenticateSupabaseToken(token, req, res) {
+  if (!ensureSupabaseReady(res)) return false;
 
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.startsWith('Bearer ')
-    ? authHeader.slice(7).trim()
-    : '';
+  try {
+    const { data, error } = await supabaseAdmin.auth.getUser(token);
+    if (error || !data?.user) {
+      res.status(401).json({ error: 'Invalid or expired token' });
+      return false;
+    }
+
+    req.supabaseAccessToken = token;
+    req.supabaseUser = data.user;
+    return true;
+  } catch (err) {
+    res.status(401).json({ error: 'Authentication failed' });
+    return false;
+  }
+}
+
+async function requireSupabaseUser(req, res, next) {
+  const token = extractBearerToken(req);
 
   if (!token) {
     return res.status(401).json({ error: 'Missing bearer token' });
   }
 
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data?.user) {
-    return res.status(401).json({ error: 'Invalid or expired token' });
+  const isAuthenticated = await authenticateSupabaseToken(token, req, res);
+  if (isAuthenticated) {
+    return next();
   }
-
-  req.supabaseAccessToken = token;
-  req.supabaseUser = data.user;
-  return next();
 }
 
 function requireApiKey(req, res, next) {
-  const key = req.headers['x-api-key'];
-  if (key !== API_KEY) {
+  if (!API_KEY || typeof API_KEY !== 'string' || API_KEY.trim() === '') {
+    return res.status(500).json({ error: 'API key is not configured on the server' });
+  }
+
+  const clientKey = req.headers['x-api-key'];
+  if (!clientKey || !safeCompare(clientKey, API_KEY)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  next();
+
+  return next();
 }
 
 async function requireAuth(req, res, next) {
-  const apiKeyHeader = req.headers['x-api-key'];
-  if (apiKeyHeader === API_KEY) {
-    return next();
-  }
+  const clientKey = req.headers['x-api-key'];
 
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-
-  if (!token) {
-    return res.status(401).json({ error: 'Unauthorized – provide x-api-key or Bearer token' });
-  }
-
-  if (!supabaseAdmin) {
-    return res.status(401).json({ error: 'Supabase is not configured on the server' });
-  }
-
-  try {
-    const { data, error } = await supabaseAdmin.auth.getUser(token);
-    if (error || !data?.user) {
-      return res.status(401).json({ error: 'Invalid or expired token' });
+  // Check API key if provided and configured
+  if (API_KEY && typeof API_KEY === 'string' && API_KEY.trim() !== '') {
+    if (clientKey && safeCompare(clientKey, API_KEY)) {
+      return next();
     }
-    req.supabaseUser = data.user;
-    req.supabaseAccessToken = token;
+  }
+
+  const token = extractBearerToken(req);
+  if (!token) {
+    return res.status(401).json({
+      error: 'Unauthorized – provide a valid x-api-key or Bearer token',
+    });
+  }
+
+  const isAuthenticated = await authenticateSupabaseToken(token, req, res);
+  if (isAuthenticated) {
     return next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Authentication failed' });
   }
 }
 

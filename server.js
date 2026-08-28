@@ -88,3 +88,14 @@ process.on('SIGTERM', () => {
     console.log('Process terminated gracefully');
   });
 });
+// Add this in server.js
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Azaad Backend API is running',
+    endpoints: {
+      health: '/health',
+      songs: '/api/songs',
+      playlists: '/api/playlists',
+    },
+  });
+});

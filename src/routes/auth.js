@@ -52,7 +52,9 @@ router.post('/login', async (req, res) => {
 
   return res.json({
     ok: true,
-    user: { username: ADMIN_USERNAME },
+    mode: 'admin',
+    accessToken: API_KEY,
+    user: { username: ADMIN_USERNAME, email: `${ADMIN_USERNAME}@azaad.com` },
   });
 });
 

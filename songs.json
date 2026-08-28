@@ -1,1 +1,47 @@
-[]
+[
+  {
+    "id": "song-1",
+    "title": "Azaad Journey",
+    "artist": "Azaad Ensemble",
+    "singers": "Azad & Crew",
+    "category": "Other",
+    "genre": "Fusion / World",
+    "type": "Original",
+    "vibe": "Uplifting",
+    "featured": true,
+    "trending": true,
+    "coverUrl": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80",
+    "audioUrl": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+    "createdAt": "2026-08-28T12:00:00.000Z"
+  },
+  {
+    "id": "song-2",
+    "title": "Midnight Reflections",
+    "artist": "Lofi Dreamer",
+    "singers": "Lofi Dreamer",
+    "category": "English",
+    "genre": "Chillout / Lofi",
+    "type": "Instrumental",
+    "vibe": "Relaxing",
+    "featured": true,
+    "trending": false,
+    "coverUrl": "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&auto=format&fit=crop&q=80",
+    "audioUrl": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+    "createdAt": "2026-08-28T11:30:00.000Z"
+  },
+  {
+    "id": "song-3",
+    "title": "Desert Horizon",
+    "artist": "Samir Khan",
+    "singers": "Samir Khan",
+    "category": "Hindi",
+    "genre": "Sufi / Acoustic",
+    "type": "Single",
+    "vibe": "Peaceful",
+    "featured": false,
+    "trending": true,
+    "coverUrl": "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=500&auto=format&fit=crop&q=80",
+    "audioUrl": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+    "createdAt": "2026-08-28T11:00:00.000Z"
+  }
+]

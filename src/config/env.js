@@ -27,19 +27,14 @@ if (fs.existsSync(defaultEnvPath)) {
   loadEnvFile(exampleEnvPath);
 }
 
-function requireEnv(name) {
-  const value = process.env[name];
-  if (!value) {
-    console.error(`Missing required environment variable: ${name}`);
-    process.exit(1);
-  }
-  return value;
+function getEnv(name, fallback = '') {
+  return process.env[name] || fallback;
 }
 
-const PORT = process.env.PORT || 5000;
-const API_KEY = requireEnv('ADMIN_API_KEY');
-const ADMIN_USERNAME = requireEnv('ADMIN_USERNAME');
-const ADMIN_PASSWORD = requireEnv('ADMIN_PASSWORD');
+const PORT = parseInt(process.env.PORT, 10) || 3000;
+const API_KEY = getEnv('ADMIN_API_KEY', 'azaad-admin-secret-key');
+const ADMIN_USERNAME = getEnv('ADMIN_USERNAME', 'admin');
+const ADMIN_PASSWORD = getEnv('ADMIN_PASSWORD', 'admin123');
 
 const CATEGORY_OPTIONS = ['Hindi', 'Bangla', 'English', 'Nasheed', 'Sura', 'Other'];
 

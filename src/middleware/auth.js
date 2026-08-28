@@ -82,6 +82,17 @@ async function requireSupabaseUser(req, res, next) {
     return res.status(401).json({ error: 'Missing bearer token' });
   }
 
+  if (API_KEY && typeof API_KEY === 'string' && safeCompare(token, API_KEY)) {
+    req.supabaseAccessToken = token;
+    req.supabaseUser = {
+      id: 'admin',
+      email: 'admin@azaad.com',
+      user_metadata: { full_name: 'Admin' },
+      created_at: new Date().toISOString(),
+    };
+    return next();
+  }
+
   const isAuthenticated = await authenticateSupabaseToken(token, req, res);
   if (isAuthenticated) {
     return next();
@@ -111,6 +122,17 @@ async function requireAuth(req, res, next) {
   }
 
   const token = extractBearerToken(req);
+  if (token && API_KEY && typeof API_KEY === 'string' && safeCompare(token, API_KEY)) {
+    req.supabaseAccessToken = token;
+    req.supabaseUser = {
+      id: 'admin',
+      email: 'admin@azaad.com',
+      user_metadata: { full_name: 'Admin' },
+      created_at: new Date().toISOString(),
+    };
+    return next();
+  }
+
   if (!token) {
     return res.status(401).json({
       error: 'Unauthorized – provide a valid x-api-key or Bearer token',

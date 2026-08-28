@@ -9,19 +9,17 @@ const { AUDIO_DIR, COVER_DIR } = require('./src/config/env');
 
 const app = express();
 
-// Required for Render reverse proxy & express-rate-limit
+// Enable trust proxy for Render reverse proxy & rate limiting
 app.set('trust proxy', 1);
 
-// Resolve directories to absolute paths to prevent CWD mismatches
-const resolvedAudioDir = AUDIO_DIR ? path.resolve(AUDIO_DIR) : null;
-const resolvedCoverDir = COVER_DIR ? path.resolve(COVER_DIR) : null;
-
-[resolvedAudioDir, resolvedCoverDir].forEach((dir) => {
+// Ensure local upload directories exist
+[AUDIO_DIR, COVER_DIR].forEach((dir) => {
   if (dir && !fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 });
 
+// Enable CORS
 app.use(
   cors({
     origin: '*',
@@ -33,11 +31,11 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static uploaded media files
-if (resolvedAudioDir) app.use('/uploads/audio', express.static(resolvedAudioDir));
-if (resolvedCoverDir) app.use('/uploads/cover', express.static(resolvedCoverDir));
+// Serve uploaded media files
+if (AUDIO_DIR) app.use('/uploads/audio', express.static(AUDIO_DIR));
+if (COVER_DIR) app.use('/uploads/cover', express.static(COVER_DIR));
 
-// Health Check (Render monitoring)
+// Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
@@ -48,28 +46,37 @@ app.use('/api/playlists', require('./src/routes/playlists'));
 app.use('/api', require('./src/routes/auth'));
 app.use('/api', require('./src/routes/profile'));
 
-// Optional: Serve built frontend if running unified monolithic service
-const frontendDist = path.join(__dirname, 'frontend/dist');
-if (fs.existsSync(frontendDist)) {
-  app.use(express.static(frontendDist));
+// Determine frontend build directory (Vite outputs to /public or /frontend/dist)
+const publicDir = path.join(__dirname, 'public');
+const frontendDistDir = path.join(__dirname, 'frontend/dist');
+const staticDir = fs.existsSync(publicDir)
+  ? publicDir
+  : fs.existsSync(frontendDistDir)
+  ? frontendDistDir
+  : null;
+
+// Serve frontend static assets if built
+if (staticDir) {
+  app.use(express.static(staticDir));
   app.get('*', (req, res, next) => {
-    if (
-      req.path.startsWith('/api') ||
-      req.path.startsWith('/uploads') ||
-      req.path.startsWith('/health')
-    ) {
+    // Pass API or uploaded asset requests to 404 handler
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
       return next();
     }
-    res.sendFile(path.join(frontendDist, 'index.html'));
+    const indexPath = path.join(staticDir, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      return res.sendFile(indexPath);
+    }
+    next();
   });
 }
 
-// 404 handler for API routes
+// 404 Handler for unmatched API routes
 app.use((req, res) => {
   res.status(404).json({ error: `Cannot ${req.method} ${req.originalUrl}` });
 });
 
-// Global error handler
+// Global Error Handler
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
   res.status(err.status || 500).json({
@@ -77,42 +84,8 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = parseInt(process.env.PORT, 10) || 5000;
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Azaad backend running on 0.0.0.0:${PORT}`);
+// Start Server
+const PORT = parseInt(process.env.PORT, 10) || 10000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Azaad backend running on http://0.0.0.0:${PORT}`);
 });
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  server.close(() => {
-    console.log('Process terminated gracefully');
-  });
-});
-// Add this in server.js
-app.get('/', (req, res) => {
-  res.json({
-    message: 'Azaad Backend API is running',
-    endpoints: {
-      health: '/health',
-      songs: '/api/songs',
-      playlists: '/api/playlists',
-    },
-  });
-});
-// Serve Frontend static assets in production
-const frontendDist = path.join(__dirname, 'frontend/dist');
-if (fs.existsSync(frontendDist)) {
-  app.use(express.static(frontendDist));
-
-  // SPA fallback for all non-API routes
-  app.get('*', (req, res, next) => {
-    if (
-      req.path.startsWith('/api') ||
-      req.path.startsWith('/uploads') ||
-      req.path.startsWith('/health')
-    ) {
-      return next();
-    }
-    res.sendFile(path.join(frontendDist, 'index.html'));
-  });
-}

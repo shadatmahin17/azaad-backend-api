@@ -5,125 +5,253 @@ const { readPlaylists, writePlaylists } = require('../utils/playlists');
 
 const router = express.Router();
 
+/**
+ * Sanitizes and deduplicates an array of song IDs.
+ */
+function sanitizeSongIds(songIds) {
+  if (!Array.isArray(songIds)) return [];
+  const validIds = songIds
+    .filter((id) => typeof id === 'string' && id.trim().length > 0)
+    .map((id) => id.trim());
+  return [...new Set(validIds)];
+}
+
+/**
+ * Checks whether the request has permission to modify the playlist.
+ * Allows access if:
+ * 1. Request was authenticated via API key (req.supabaseUser is undefined).
+ * 2. Request was authenticated by the owner of the playlist.
+ */
+function canModifyPlaylist(req, playlist) {
+  // If authenticated via master API key
+  if (!req.supabaseUser) {
+    return true;
+  }
+  // Check if current user matches playlist owner
+  return playlist.createdBy?.id === req.supabaseUser.id;
+}
+
+// GET all playlists
 router.get('/', (req, res) => {
-  const playlists = readPlaylists();
-  res.json({ playlists });
+  try {
+    const rawPlaylists = readPlaylists();
+    const playlists = Array.isArray(rawPlaylists) ? rawPlaylists : [];
+    return res.json({ playlists });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to load playlists' });
+  }
 });
 
+// GET playlist by ID
 router.get('/:id', (req, res) => {
-  const playlists = readPlaylists();
-  const playlist = playlists.find((p) => p.id === req.params.id);
-  if (!playlist) {
-    return res.status(404).json({ error: 'Playlist not found' });
+  try {
+    const rawPlaylists = readPlaylists();
+    const playlists = Array.isArray(rawPlaylists) ? rawPlaylists : [];
+    const playlist = playlists.find((p) => p.id === req.params.id);
+
+    if (!playlist) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
+    return res.json(playlist);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to load playlist' });
   }
-  return res.json(playlist);
 });
 
+// CREATE playlist
 router.post('/', requireAuth, (req, res) => {
-  const playlists = readPlaylists();
+  try {
+    const rawPlaylists = readPlaylists();
+    const playlists = Array.isArray(rawPlaylists) ? rawPlaylists : [];
 
-  const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
-  const description = typeof req.body.description === 'string' ? req.body.description.trim() : '';
-  const songIds = Array.isArray(req.body.songIds) ? req.body.songIds : [];
+    const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+    const description =
+      typeof req.body.description === 'string' ? req.body.description.trim() : '';
+    const songIds = sanitizeSongIds(req.body.songIds);
 
-  if (!name) {
-    return res.status(400).json({ error: 'Playlist name is required' });
+    if (!name) {
+      return res.status(400).json({ error: 'Playlist name is required' });
+    }
+
+    const userId = req.supabaseUser?.id || 'admin';
+    const userName =
+      req.supabaseUser?.user_metadata?.full_name ||
+      req.supabaseUser?.email ||
+      'Admin';
+
+    const now = new Date().toISOString();
+    const newPlaylist = {
+      id: crypto.randomUUID(),
+      name,
+      description,
+      songIds,
+      createdBy: { id: userId, name: userName },
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    playlists.unshift(newPlaylist);
+    writePlaylists(playlists);
+
+    return res.status(201).json(newPlaylist);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to create playlist' });
   }
-
-  const userId = req.supabaseUser?.id || 'admin';
-  const userName = req.supabaseUser?.user_metadata?.full_name || req.supabaseUser?.email || 'Admin';
-
-  const newPlaylist = {
-    id: crypto.randomUUID(),
-    name,
-    description,
-    songIds,
-    createdBy: { id: userId, name: userName },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  playlists.unshift(newPlaylist);
-  writePlaylists(playlists);
-
-  return res.status(201).json(newPlaylist);
 });
 
+// UPDATE playlist metadata
 router.put('/:id', requireAuth, (req, res) => {
-  const playlists = readPlaylists();
-  const index = playlists.findIndex((p) => p.id === req.params.id);
+  try {
+    const rawPlaylists = readPlaylists();
+    const playlists = Array.isArray(rawPlaylists) ? rawPlaylists : [];
+    const index = playlists.findIndex((p) => p.id === req.params.id);
 
-  if (index === -1) {
-    return res.status(404).json({ error: 'Playlist not found' });
-  }
+    if (index === -1) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
 
-  const current = playlists[index];
-  const name = typeof req.body.name === 'string' ? req.body.name.trim() : current.name;
-  const description = typeof req.body.description === 'string' ? req.body.description.trim() : current.description;
-  const songIds = Array.isArray(req.body.songIds) ? req.body.songIds : current.songIds;
+    const current = playlists[index];
 
-  playlists[index] = {
-    ...current,
-    name,
-    description,
-    songIds,
-    updatedAt: new Date().toISOString(),
-  };
+    if (!canModifyPlaylist(req, current)) {
+      return res
+        .status(403)
+        .json({ error: 'Forbidden: You do not have permission to modify this playlist' });
+    }
 
-  writePlaylists(playlists);
-  return res.json(playlists[index]);
-});
+    let updatedName = current.name;
+    if (req.body.name !== undefined) {
+      if (typeof req.body.name !== 'string' || req.body.name.trim() === '') {
+        return res.status(400).json({ error: 'Playlist name cannot be empty' });
+      }
+      updatedName = req.body.name.trim();
+    }
 
-router.delete('/:id', requireAuth, (req, res) => {
-  const playlists = readPlaylists();
-  const index = playlists.findIndex((p) => p.id === req.params.id);
+    const description =
+      req.body.description !== undefined && typeof req.body.description === 'string'
+        ? req.body.description.trim()
+        : current.description || '';
 
-  if (index === -1) {
-    return res.status(404).json({ error: 'Playlist not found' });
-  }
+    const songIds =
+      req.body.songIds !== undefined
+        ? sanitizeSongIds(req.body.songIds)
+        : Array.isArray(current.songIds)
+        ? current.songIds
+        : [];
 
-  playlists.splice(index, 1);
-  writePlaylists(playlists);
-  return res.json({ ok: true, message: 'Playlist deleted' });
-});
+    playlists[index] = {
+      ...current,
+      name: updatedName,
+      description,
+      songIds,
+      updatedAt: new Date().toISOString(),
+    };
 
-router.post('/:id/songs', requireAuth, (req, res) => {
-  const playlists = readPlaylists();
-  const index = playlists.findIndex((p) => p.id === req.params.id);
-
-  if (index === -1) {
-    return res.status(404).json({ error: 'Playlist not found' });
-  }
-
-  const songId = typeof req.body.songId === 'string' ? req.body.songId.trim() : '';
-  if (!songId) {
-    return res.status(400).json({ error: 'songId is required' });
-  }
-
-  if (playlists[index].songIds.includes(songId)) {
+    writePlaylists(playlists);
     return res.json(playlists[index]);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to update playlist' });
   }
-
-  playlists[index].songIds.push(songId);
-  playlists[index].updatedAt = new Date().toISOString();
-  writePlaylists(playlists);
-  return res.json(playlists[index]);
 });
 
-router.delete('/:id/songs/:songId', requireAuth, (req, res) => {
-  const playlists = readPlaylists();
-  const index = playlists.findIndex((p) => p.id === req.params.id);
+// DELETE playlist
+router.delete('/:id', requireAuth, (req, res) => {
+  try {
+    const rawPlaylists = readPlaylists();
+    const playlists = Array.isArray(rawPlaylists) ? rawPlaylists : [];
+    const index = playlists.findIndex((p) => p.id === req.params.id);
 
-  if (index === -1) {
-    return res.status(404).json({ error: 'Playlist not found' });
+    if (index === -1) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
+
+    const current = playlists[index];
+    if (!canModifyPlaylist(req, current)) {
+      return res
+        .status(403)
+        .json({ error: 'Forbidden: You do not have permission to delete this playlist' });
+    }
+
+    playlists.splice(index, 1);
+    writePlaylists(playlists);
+    return res.json({ ok: true, message: 'Playlist deleted' });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to delete playlist' });
   }
+});
 
-  playlists[index].songIds = playlists[index].songIds.filter(
-    (sid) => sid !== req.params.songId
-  );
-  playlists[index].updatedAt = new Date().toISOString();
-  writePlaylists(playlists);
-  return res.json(playlists[index]);
+// ADD song to playlist
+router.post('/:id/songs', requireAuth, (req, res) => {
+  try {
+    const rawPlaylists = readPlaylists();
+    const playlists = Array.isArray(rawPlaylists) ? rawPlaylists : [];
+    const index = playlists.findIndex((p) => p.id === req.params.id);
+
+    if (index === -1) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
+
+    const current = playlists[index];
+    if (!canModifyPlaylist(req, current)) {
+      return res
+        .status(403)
+        .json({ error: 'Forbidden: You do not have permission to modify this playlist' });
+    }
+
+    const songId = typeof req.body.songId === 'string' ? req.body.songId.trim() : '';
+    if (!songId) {
+      return res.status(400).json({ error: 'songId is required' });
+    }
+
+    const currentSongIds = Array.isArray(current.songIds) ? current.songIds : [];
+
+    if (!currentSongIds.includes(songId)) {
+      currentSongIds.push(songId);
+      playlists[index] = {
+        ...current,
+        songIds: currentSongIds,
+        updatedAt: new Date().toISOString(),
+      };
+      writePlaylists(playlists);
+    }
+
+    return res.json(playlists[index]);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to add song to playlist' });
+  }
+});
+
+// REMOVE song from playlist
+router.delete('/:id/songs/:songId', requireAuth, (req, res) => {
+  try {
+    const rawPlaylists = readPlaylists();
+    const playlists = Array.isArray(rawPlaylists) ? rawPlaylists : [];
+    const index = playlists.findIndex((p) => p.id === req.params.id);
+
+    if (index === -1) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
+
+    const current = playlists[index];
+    if (!canModifyPlaylist(req, current)) {
+      return res
+        .status(403)
+        .json({ error: 'Forbidden: You do not have permission to modify this playlist' });
+    }
+
+    const songIdToRemove = req.params.songId;
+    const currentSongIds = Array.isArray(current.songIds) ? current.songIds : [];
+
+    playlists[index] = {
+      ...current,
+      songIds: currentSongIds.filter((sid) => sid !== songIdToRemove),
+      updatedAt: new Date().toISOString(),
+    };
+
+    writePlaylists(playlists);
+    return res.json(playlists[index]);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to remove song from playlist' });
+  }
 });
 
 module.exports = router;

@@ -99,3 +99,20 @@ app.get('/', (req, res) => {
     },
   });
 });
+// Serve Frontend static assets in production
+const frontendDist = path.join(__dirname, 'frontend/dist');
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+
+  // SPA fallback for all non-API routes
+  app.get('*', (req, res, next) => {
+    if (
+      req.path.startsWith('/api') ||
+      req.path.startsWith('/uploads') ||
+      req.path.startsWith('/health')
+    ) {
+      return next();
+    }
+    res.sendFile(path.join(frontendDist, 'index.html'));
+  });
+}

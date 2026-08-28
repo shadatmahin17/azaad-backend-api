@@ -1,179 +1,64 @@
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const multer = require('multer');
-const fs = require('fs');
 const path = require('path');
+const fs = require('fs');
 
-const {
-  PORT,
-  UPLOADS_DIR,
-  AUDIO_DIR,
-  COVER_DIR,
-  SONGS_FILE,
-  LEGACY_SONGS_FILE,
-  PLAYLISTS_FILE,
-  PUBLIC_DIR,
-  ALLOWED_ORIGINS,
-} = require('./src/config/env');
+require('dotenv').config();
 
-const songRoutes = require('./src/routes/songs');
-const authRoutes = require('./src/routes/auth');
-const profileRoutes = require('./src/routes/profile');
-const playlistRoutes = require('./src/routes/playlists');
+const { AUDIO_DIR, COVER_DIR } = require('./src/config/env');
 
 const app = express();
 
-// --- Security middleware ---
+// Required for Render reverse proxy & express-rate-limit
+app.set('trust proxy', 1);
+
+// Ensure upload directories exist
+[AUDIO_DIR, COVER_DIR].forEach((dir) => {
+  if (dir && !fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
 
 app.use(
-  helmet({
-    contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false,
-    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key'],
   })
 );
 
-const corsOptions = {
-  origin: ALLOWED_ORIGINS.length > 0 ? ALLOWED_ORIGINS : true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'x-api-key', 'Authorization'],
-  credentials: true,
-};
-app.use(cors(corsOptions));
-
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later.' },
-});
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many login attempts, please try again later.' },
-});
-
-app.use('/api/login', authLimiter);
-app.use('/api/auth', authLimiter);
-app.use('/api', apiLimiter);
-
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// --- Static files ---
+// Serve static uploaded media files
+if (AUDIO_DIR) app.use('/uploads/audio', express.static(AUDIO_DIR));
+if (COVER_DIR) app.use('/uploads/cover', express.static(COVER_DIR));
 
-app.use('/uploads', express.static(UPLOADS_DIR));
-app.use(express.static(PUBLIC_DIR));
+// Health Check
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
-// --- Initialize directories and data file ---
+// Mount Routes
+app.use('/api/songs', require('./src/routes/songs'));
+app.use('/api/playlists', require('./src/routes/playlists'));
+app.use('/api', require('./src/routes/auth'));
+app.use('/api', require('./src/routes/profile'));
 
-[path.dirname(SONGS_FILE), UPLOADS_DIR, AUDIO_DIR, COVER_DIR, PUBLIC_DIR].forEach(
-  (dir) => {
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  }
-);
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: `Cannot ${req.method} ${req.originalUrl}` });
+});
 
-if (!fs.existsSync(SONGS_FILE)) {
-  if (fs.existsSync(LEGACY_SONGS_FILE)) {
-    fs.copyFileSync(LEGACY_SONGS_FILE, SONGS_FILE);
-  } else {
-    fs.writeFileSync(SONGS_FILE, '[]', 'utf8');
-  }
-}
-
-if (!fs.existsSync(PLAYLISTS_FILE)) {
-  fs.writeFileSync(PLAYLISTS_FILE, '[]', 'utf8');
-}
-
-// --- API info endpoint ---
-
-app.get('/api', (req, res) => {
-  res.json({
-    ok: true,
-    message: 'Azaad backend running',
-    endpoints: {
-      list: 'GET /api/songs',
-      create: 'POST /api/songs',
-      update: 'PUT /api/songs/:id',
-      delete: 'DELETE /api/songs/:id',
-      signup: 'POST /api/auth/signup',
-      signin: 'POST /api/auth/signin',
-      refresh: 'POST /api/auth/refresh',
-      logout: 'POST /api/logout',
-      forgotPassword: 'POST /api/forgot-password',
-      resetPassword: 'POST /api/reset-password',
-      changePassword: 'POST /api/change-password',
-      me: 'GET /api/me',
-      playlists: 'GET /api/playlists',
-      createPlaylist: 'POST /api/playlists',
-      updatePlaylist: 'PUT /api/playlists/:id',
-      deletePlaylist: 'DELETE /api/playlists/:id',
-      addToPlaylist: 'POST /api/playlists/:id/songs',
-      removeFromPlaylist: 'DELETE /api/playlists/:id/songs/:songId',
-      profile: 'GET /api/profile-view',
-      updateProfile: 'PUT /api/profile',
-      uploadAvatar: 'POST /api/profile/avatar',
-      health: 'GET /api/health',
-    },
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal Server Error',
   });
 });
 
-// --- Health check ---
-app.get('/api/health', (req, res) => {
-  const { hasSupabaseDataApi, hasSupabaseStorageApi } = require('./src/config/supabase');
-  const { USE_SUPABASE, SUPABASE_STORAGE_BUCKET, SUPABASE_SONGS_BUCKET } = require('./src/config/env');
-  res.json({
-    ok: true,
-    supabase: {
-      configured: USE_SUPABASE,
-      dataApi: hasSupabaseDataApi,
-      storageApi: hasSupabaseStorageApi,
-      avatarsBucket: SUPABASE_STORAGE_BUCKET,
-      songsBucket: SUPABASE_SONGS_BUCKET,
-    },
-  });
-});
-
-// --- Routes ---
-
-app.use('/api/songs', songRoutes);
-app.use('/api/playlists', playlistRoutes);
-app.use('/api', authRoutes);
-app.use('/api', profileRoutes);
-
-// --- SPA fallback for React frontend ---
-
-app.get('*', (req, res) => {
-  const indexPath = path.join(PUBLIC_DIR, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    return res.sendFile(indexPath);
-  }
-  return res.status(404).json({ error: 'Frontend not built. Run: npm run build' });
-});
-
-// --- Global error handler ---
-
-app.use((error, req, res, _next) => {
-  console.error(error);
-  if (error instanceof multer.MulterError) {
-    return res.status(400).json({ error: error.message });
-  }
-  return res.status(500).json({ error: 'Server error' });
-});
-
-app.listen(PORT, () => {
-  const { hasSupabaseDataApi, hasSupabaseStorageApi } = require('./src/config/supabase');
-  const { USE_SUPABASE } = require('./src/config/env');
-  console.log(`Azaad backend running at http://localhost:${PORT}`);
-  console.log(`  Supabase configured: ${USE_SUPABASE}`);
-  console.log(`  Supabase data API:   ${hasSupabaseDataApi}`);
-  console.log(`  Supabase storage:    ${hasSupabaseStorageApi}`);
-  if (!USE_SUPABASE) {
-    console.warn('  ⚠ Set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY to enable profile & storage features');
-  }
+const PORT = parseInt(process.env.PORT, 10) || 5000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Azaad backend running on 0.0.0.0:${PORT}`);
 });

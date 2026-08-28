@@ -48,12 +48,14 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 
-const DEFAULT_API_BASE = typeof window !== 'undefined' ? `${window.location.origin}/api/songs` : 'http://localhost:5000/api/songs';
+const DEFAULT_API_BASE =
+  typeof window !== 'undefined'
+    ? `${window.location.origin}/api/songs`
+    : 'http://localhost:5000/api/songs';
 const API_BASE = import.meta.env.VITE_API_BASE || DEFAULT_API_BASE;
 const SERVER_BASE = API_BASE.replace('/api/songs', '');
 const LOGO_URL = '/img/Logo.png';
 const BLACK_LOGO_URL = '/img/Black-Logo.png';
-const BG_URL = 'https://mahin-cloud-storage.s3.ap-southeast-1.amazonaws.com/img/Background.jpg';
 
 const MAX_AUDIO_SIZE = 100 * 1024 * 1024;
 const MAX_IMAGE_SIZE = 15 * 1024 * 1024;
@@ -66,10 +68,17 @@ const normalizeS3Url = (url) => {
   const withoutProtocol = trimmed.slice(5);
   const slashIndex = withoutProtocol.indexOf('/');
   if (slashIndex === -1) return trimmed;
-  const bucket = withoutProtocol.slice(0, slashIndex);
-  const key = withoutProtocol.slice(slashIndex + 1);
+  const bucket = withoutProtocol.slice(0, slashIndex).trim();
+  const key = withoutProtocol.slice(slashIndex + 1).trim();
   if (!bucket || !key) return trimmed;
-  return `https://${bucket}.s3.amazonaws.com/${encodeURI(key)}`;
+
+  const encodedKey = key
+    .replace(/^\/+/, '')
+    .split('/')
+    .map((part) => encodeURIComponent(part))
+    .join('/');
+
+  return `https://${bucket}.s3.amazonaws.com/${encodedKey}`;
 };
 
 const firstNonEmptyString = (...values) => {
@@ -93,15 +102,15 @@ const normalizeSong = (song = {}, index = 0) => {
 };
 
 const mediaUrl = (url) => {
-  if (!url) return url;
+  if (!url) return '';
   const normalized = normalizeS3Url(url);
-  if (!normalized || normalized.startsWith('http')) return normalized;
+  if (!normalized || normalized.startsWith('http') || normalized.startsWith('blob:')) return normalized;
   const normalizedPath = normalized.startsWith('/') ? normalized : `/${normalized}`;
   return `${SERVER_BASE}${normalizedPath}`;
 };
 
 const formatTime = (seconds) => {
-  if (!seconds || isNaN(seconds)) return '0:00';
+  if (!seconds || isNaN(seconds) || seconds < 0) return '0:00';
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -128,7 +137,8 @@ function EditModal({ song, onClose, onSave, loading }) {
     onSave(song.id, form);
   };
 
-  const inputClass = 'w-full px-4 py-3 rounded-xl bg-[var(--bg)]/60 border border-[var(--primary)]/10 text-[var(--text)] placeholder-[var(--text-light)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-colors';
+  const inputClass =
+    'w-full px-4 py-3 rounded-xl bg-[var(--bg)]/60 border border-[var(--primary)]/10 text-[var(--text)] placeholder-[var(--text-light)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-colors';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -136,7 +146,10 @@ function EditModal({ song, onClose, onSave, loading }) {
       <div className="relative w-full max-w-lg glass-card rounded-2xl p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-bold text-[var(--text)]">Edit Track</h3>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-white/10 text-[var(--text-light)] hover:text-[var(--text)] transition-colors"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -144,11 +157,11 @@ function EditModal({ song, onClose, onSave, loading }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="text-xs text-[var(--text-light)] mb-1 block">Title</label>
+              <label className="text-xs text-[var(--text-light)] mb-1 block">Title *</label>
               <input name="title" value={form.title} onChange={handleChange} required className={inputClass} />
             </div>
             <div>
-              <label className="text-xs text-[var(--text-light)] mb-1 block">Artist</label>
+              <label className="text-xs text-[var(--text-light)] mb-1 block">Artist *</label>
               <input name="artist" value={form.artist} onChange={handleChange} required className={inputClass} />
             </div>
             <div>
@@ -158,7 +171,11 @@ function EditModal({ song, onClose, onSave, loading }) {
             <div>
               <label className="text-xs text-[var(--text-light)] mb-1 block">Category</label>
               <select name="category" value={form.category} onChange={handleChange} className={inputClass}>
-                {CATEGORY_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                {CATEGORY_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
@@ -176,10 +193,18 @@ function EditModal({ song, onClose, onSave, loading }) {
           </div>
 
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl border border-[var(--primary)]/20 text-[var(--text-light)] hover:bg-white/5 font-medium transition-colors">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-3 rounded-xl border border-[var(--primary)]/20 text-[var(--text-light)] hover:bg-white/5 font-medium transition-colors"
+            >
               Cancel
             </button>
-            <button type="submit" disabled={loading} className="flex-1 py-3 rounded-xl bg-[var(--primary-dark)] hover:bg-[var(--primary)] text-[var(--bg)] font-bold disabled:opacity-50 flex items-center justify-center gap-2 transition-colors">
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 py-3 rounded-xl bg-[var(--primary-dark)] hover:bg-[var(--primary)] text-[var(--bg)] font-bold disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+            >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {loading ? 'Saving...' : 'Save'}
             </button>
@@ -190,7 +215,7 @@ function EditModal({ song, onClose, onSave, loading }) {
   );
 }
 
-// ─── Improved Audio Player Bar ─────────────────────────────────────────────────
+// ─── Audio Player Bar ──────────────────────────────────────────────────────────
 function PlayerBar({ song, songs, onChangeSong, hasBottomNav }) {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -207,7 +232,10 @@ function PlayerBar({ song, songs, onChangeSong, hasBottomNav }) {
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.load();
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+      audioRef.current
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch(() => setIsPlaying(false));
     }
   }, [song.id]);
 
@@ -217,20 +245,27 @@ function PlayerBar({ song, songs, onChangeSong, hasBottomNav }) {
       audioRef.current.pause();
       setIsPlaying(false);
     } else {
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+      audioRef.current
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch(() => setIsPlaying(false));
     }
   };
 
   const handleTimeUpdate = () => {
-    if (audioRef.current && !isDragging) setCurrentTime(audioRef.current.currentTime);
+    if (audioRef.current && !isDragging) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
   };
 
   const handleLoadedMetadata = () => {
-    if (audioRef.current) setDuration(audioRef.current.duration);
+    if (audioRef.current && !isNaN(audioRef.current.duration)) {
+      setDuration(audioRef.current.duration);
+    }
   };
 
   const handleSeek = (e) => {
-    if (!audioRef.current || !seekBarRef.current) return;
+    if (!audioRef.current || !seekBarRef.current || !duration) return;
     const rect = seekBarRef.current.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     audioRef.current.currentTime = ratio * duration;
@@ -270,7 +305,9 @@ function PlayerBar({ song, songs, onChangeSong, hasBottomNav }) {
   const playNext = useCallback(() => {
     if (isShuffled && songs.length > 1) {
       let next;
-      do { next = songs[Math.floor(Math.random() * songs.length)]; } while (next.id === song.id);
+      do {
+        next = songs[Math.floor(Math.random() * songs.length)];
+      } while (next.id === song.id);
       onChangeSong(next);
       return;
     }
@@ -292,7 +329,10 @@ function PlayerBar({ song, songs, onChangeSong, hasBottomNav }) {
   const handleEnded = () => {
     if (repeatMode === 'one') {
       audioRef.current.currentTime = 0;
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+      audioRef.current
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch(() => {});
       return;
     }
     setIsPlaying(false);
@@ -300,7 +340,7 @@ function PlayerBar({ song, songs, onChangeSong, hasBottomNav }) {
   };
 
   const cycleRepeat = () => {
-    setRepeatMode((prev) => prev === 'off' ? 'all' : prev === 'all' ? 'one' : 'off');
+    setRepeatMode((prev) => (prev === 'off' ? 'all' : prev === 'all' ? 'one' : 'off'));
   };
 
   useEffect(() => {
@@ -341,22 +381,22 @@ function PlayerBar({ song, songs, onChangeSong, hasBottomNav }) {
     navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
   }, [isPlaying]);
 
-  useEffect(() => {
-    if (typeof navigator === 'undefined' || !('mediaSession' in navigator) || !('setPositionState' in navigator.mediaSession)) return;
-    if (!duration || Number.isNaN(duration)) return;
-    navigator.mediaSession.setPositionState({
-      duration,
-      playbackRate: audioRef.current?.playbackRate || 1,
-      position: currentTime,
-    });
-  }, [currentTime, duration]);
-
   const progress = duration ? (currentTime / duration) * 100 : 0;
 
   return (
     <div
-      className={`fixed left-0 right-0 z-50 player-glass border-t border-[var(--primary)]/10 overflow-hidden ${hasBottomNav ? 'bottom-[4.5rem] md:bottom-0' : 'bottom-0'}`}
-      style={song.coverUrl ? { backgroundImage: `url(${mediaUrl(song.coverUrl)})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+      className={`fixed left-0 right-0 z-50 player-glass border-t border-[var(--primary)]/10 overflow-hidden ${
+        hasBottomNav ? 'bottom-[4.5rem] md:bottom-0' : 'bottom-0'
+      }`}
+      style={
+        song.coverUrl
+          ? {
+              backgroundImage: `url(${mediaUrl(song.coverUrl)})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }
+          : undefined
+      }
     >
       <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(12,16,18,0.82),rgba(12,16,18,0.92))] backdrop-blur-[3px]" />
       <audio
@@ -364,170 +404,184 @@ function PlayerBar({ song, songs, onChangeSong, hasBottomNav }) {
         src={mediaUrl(song.audioUrl)}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
+        onDurationChange={handleLoadedMetadata}
         onEnded={handleEnded}
         onError={() => setIsPlaying(false)}
         loop={repeatMode === 'one'}
       />
 
       <div className="relative z-10">
-      {/* Seek bar */}
-      <div
-        ref={seekBarRef}
-        className="h-1.5 bg-white/5 cursor-pointer group relative"
-        onMouseDown={handleSeekMouseDown}
-      >
+        {/* Seek bar */}
         <div
-          className="h-full bg-gradient-to-r from-[var(--primary-dark)] to-[var(--primary)] group-hover:shadow-[0_0_12px_rgba(83,242,224,0.4)] transition-shadow relative"
-          style={{ width: `${progress}%` }}
+          ref={seekBarRef}
+          className="h-1.5 bg-white/5 cursor-pointer group relative"
+          onMouseDown={handleSeekMouseDown}
         >
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[var(--primary)] opacity-0 group-hover:opacity-100 transition-opacity shadow-[0_0_8px_rgba(83,242,224,0.5)]" />
-        </div>
-      </div>
-
-      {/* Desktop / Tablet player layout */}
-      <div className="hidden sm:flex items-center justify-between px-4 md:px-6 py-3 max-w-screen-2xl mx-auto">
-        {/* Track info */}
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="relative flex-shrink-0">
-            <img
-              src={mediaUrl(song.coverUrl)}
-              alt={song.title}
-              className={`w-14 h-14 rounded-xl object-cover border border-[var(--primary)]/20 ${isPlaying ? 'shadow-[0_0_20px_rgba(83,242,224,0.15)]' : ''}`}
-            />
-            {isPlaying && (
-              <div className="absolute -bottom-1 -right-1 flex items-end gap-[2px] bg-[var(--card-bg)] rounded-md px-1 py-0.5">
-                <span className="w-[3px] rounded-full bg-[var(--primary)] eq-bar-1" />
-                <span className="w-[3px] rounded-full bg-[var(--primary)] eq-bar-2" />
-                <span className="w-[3px] rounded-full bg-[var(--primary)] eq-bar-3" />
-                <span className="w-[3px] rounded-full bg-[var(--primary)] eq-bar-4" />
-              </div>
-            )}
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-[var(--text)] truncate">{song.title}</p>
-            <p className="text-xs text-[var(--text-light)] truncate">{song.singers || song.artist}</p>
-          </div>
-          <button
-            onClick={() => setLiked(!liked)}
-            className={`p-2 rounded-full transition-colors flex-shrink-0 ${liked ? 'text-red-400' : 'text-[var(--text-light)] hover:text-red-400'}`}
+          <div
+            className="h-full bg-gradient-to-r from-[var(--primary-dark)] to-[var(--primary)] group-hover:shadow-[0_0_12px_rgba(83,242,224,0.4)] transition-shadow relative"
+            style={{ width: `${progress}%` }}
           >
-            <Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />
-          </button>
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[var(--primary)] opacity-0 group-hover:opacity-100 transition-opacity shadow-[0_0_8px_rgba(83,242,224,0.5)]" />
+          </div>
         </div>
 
-        {/* Center controls */}
-        <div className="flex flex-col items-center gap-1 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsShuffled(!isShuffled)}
-              className={`p-2 rounded-full transition-colors ${isShuffled ? 'text-[var(--primary)]' : 'text-[var(--text-light)] hover:text-[var(--text)]'}`}
-              title="Shuffle"
-            >
-              <Shuffle className="w-4 h-4" />
-            </button>
-            <button onClick={playPrev} className="p-2 text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
-              <SkipBack className="w-5 h-5" />
-            </button>
-            <button
-              onClick={togglePlay}
-              className="w-12 h-12 rounded-full bg-[var(--primary)] text-[var(--bg)] flex items-center justify-center hover:scale-105 transition-all glow-primary"
-            >
-              {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
-            </button>
-            <button onClick={playNext} className="p-2 text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
-              <SkipForward className="w-5 h-5" />
-            </button>
-            <button
-              onClick={cycleRepeat}
-              className={`p-2 rounded-full transition-colors relative ${repeatMode !== 'off' ? 'text-[var(--primary)]' : 'text-[var(--text-light)] hover:text-[var(--text)]'}`}
-              title={`Repeat: ${repeatMode}`}
-            >
-              <Repeat className="w-4 h-4" />
-              {repeatMode === 'one' && (
-                <span className="absolute -top-0.5 -right-0.5 text-[8px] font-bold bg-[var(--primary)] text-[var(--bg)] w-3.5 h-3.5 rounded-full flex items-center justify-center">1</span>
+        {/* Desktop / Tablet player layout */}
+        <div className="hidden sm:flex items-center justify-between px-4 md:px-6 py-3 max-w-screen-2xl mx-auto">
+          {/* Track info */}
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="relative flex-shrink-0">
+              <img
+                src={mediaUrl(song.coverUrl)}
+                alt={song.title}
+                className={`w-14 h-14 rounded-xl object-cover border border-[var(--primary)]/20 ${
+                  isPlaying ? 'shadow-[0_0_20px_rgba(83,242,224,0.15)]' : ''
+                }`}
+              />
+              {isPlaying && (
+                <div className="absolute -bottom-1 -right-1 flex items-end gap-[2px] bg-[var(--card-bg)] rounded-md px-1 py-0.5">
+                  <span className="w-[3px] rounded-full bg-[var(--primary)] eq-bar-1" />
+                  <span className="w-[3px] rounded-full bg-[var(--primary)] eq-bar-2" />
+                  <span className="w-[3px] rounded-full bg-[var(--primary)] eq-bar-3" />
+                  <span className="w-[3px] rounded-full bg-[var(--primary)] eq-bar-4" />
+                </div>
               )}
-            </button>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-[var(--text-light)]">{formatTime(currentTime)}</span>
-            <span className="text-[10px] text-[var(--text-light)]">/</span>
-            <span className="text-[10px] text-[var(--text-light)]">{formatTime(duration)}</span>
-          </div>
-        </div>
-
-        {/* Volume */}
-        <div className="hidden md:flex items-center gap-2 flex-1 justify-end">
-          <button onClick={toggleMute} className="p-2 text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
-            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-          </button>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={isMuted ? 0 : volume}
-            onChange={handleVolumeChange}
-            className="w-28"
-          />
-        </div>
-      </div>
-
-      {/* Mobile player layout */}
-      <div className="sm:hidden px-3 pt-2 pb-2.5">
-        {/* Track info + controls row */}
-        <div className="flex items-center gap-3">
-          <div className="relative flex-shrink-0">
-            <img
-              src={mediaUrl(song.coverUrl)}
-              alt={song.title}
-              className={`w-12 h-12 rounded-xl object-cover border border-[var(--primary)]/20 ${isPlaying ? 'shadow-[0_0_14px_rgba(83,242,224,0.15)]' : ''}`}
-            />
-            {isPlaying && (
-              <div className="absolute -bottom-0.5 -right-0.5 flex items-end gap-[1.5px] bg-[var(--card-bg)] rounded px-0.5 py-0.5">
-                <span className="w-[2px] rounded-full bg-[var(--primary)] eq-bar-1" />
-                <span className="w-[2px] rounded-full bg-[var(--primary)] eq-bar-2" />
-                <span className="w-[2px] rounded-full bg-[var(--primary)] eq-bar-3" />
-              </div>
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-semibold text-[var(--text)] truncate leading-tight">{song.title}</p>
-            <p className="text-[11px] text-[var(--text-light)] truncate mt-0.5">{song.singers || song.artist}</p>
-          </div>
-          <div className="flex items-center gap-0.5 flex-shrink-0">
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-[var(--text)] truncate">{song.title}</p>
+              <p className="text-xs text-[var(--text-light)] truncate">{song.singers || song.artist}</p>
+            </div>
             <button
               onClick={() => setLiked(!liked)}
-              className={`p-2 rounded-full transition-colors ${liked ? 'text-red-400' : 'text-[var(--text-light)]/60'}`}
+              className={`p-2 rounded-full transition-colors flex-shrink-0 ${
+                liked ? 'text-red-400' : 'text-[var(--text-light)] hover:text-red-400'
+              }`}
             >
               <Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />
             </button>
-            <button onClick={playPrev} className="p-2 text-[var(--text-light)]/70 active:text-[var(--text)] transition-colors">
-              <SkipBack className="w-5 h-5" />
-            </button>
-            <button
-              onClick={togglePlay}
-              className="w-11 h-11 rounded-full bg-[var(--primary)] text-[var(--bg)] flex items-center justify-center active:scale-95 transition-transform glow-primary"
-            >
-              {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
-            </button>
-            <button onClick={playNext} className="p-2 text-[var(--text-light)]/70 active:text-[var(--text)] transition-colors">
-              <SkipForward className="w-5 h-5" />
-            </button>
           </div>
-        </div>
-        {/* Progress bar + time */}
-        <div className="flex items-center gap-2 mt-2">
-          <span className="text-[9px] text-[var(--text-light)]/60 tabular-nums w-7 text-right">{formatTime(currentTime)}</span>
-          <div className="flex-1 h-1 rounded-full bg-white/10 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-[var(--primary-dark)] to-[var(--primary)] transition-[width] duration-150"
-              style={{ width: `${progress}%` }}
+
+          {/* Center controls */}
+          <div className="flex flex-col items-center gap-1 flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsShuffled(!isShuffled)}
+                className={`p-2 rounded-full transition-colors ${
+                  isShuffled ? 'text-[var(--primary)]' : 'text-[var(--text-light)] hover:text-[var(--text)]'
+                }`}
+                title="Shuffle"
+              >
+                <Shuffle className="w-4 h-4" />
+              </button>
+              <button onClick={playPrev} className="p-2 text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
+                <SkipBack className="w-5 h-5" />
+              </button>
+              <button
+                onClick={togglePlay}
+                className="w-12 h-12 rounded-full bg-[var(--primary)] text-[var(--bg)] flex items-center justify-center hover:scale-105 transition-all glow-primary"
+              >
+                {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+              </button>
+              <button onClick={playNext} className="p-2 text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
+                <SkipForward className="w-5 h-5" />
+              </button>
+              <button
+                onClick={cycleRepeat}
+                className={`p-2 rounded-full transition-colors relative ${
+                  repeatMode !== 'off' ? 'text-[var(--primary)]' : 'text-[var(--text-light)] hover:text-[var(--text)]'
+                }`}
+                title={`Repeat: ${repeatMode}`}
+              >
+                <Repeat className="w-4 h-4" />
+                {repeatMode === 'one' && (
+                  <span className="absolute -top-0.5 -right-0.5 text-[8px] font-bold bg-[var(--primary)] text-[var(--bg)] w-3.5 h-3.5 rounded-full flex items-center justify-center">
+                    1
+                  </span>
+                )}
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-[var(--text-light)]">{formatTime(currentTime)}</span>
+              <span className="text-[10px] text-[var(--text-light)]">/</span>
+              <span className="text-[10px] text-[var(--text-light)]">{formatTime(duration)}</span>
+            </div>
+          </div>
+
+          {/* Volume */}
+          <div className="hidden md:flex items-center gap-2 flex-1 justify-end">
+            <button onClick={toggleMute} className="p-2 text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
+              {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={isMuted ? 0 : volume}
+              onChange={handleVolumeChange}
+              className="w-28"
             />
           </div>
-          <span className="text-[9px] text-[var(--text-light)]/60 tabular-nums w-7">{formatTime(duration)}</span>
+        </div>
+
+        {/* Mobile player layout */}
+        <div className="sm:hidden px-3 pt-2 pb-2.5">
+          <div className="flex items-center gap-3">
+            <div className="relative flex-shrink-0">
+              <img
+                src={mediaUrl(song.coverUrl)}
+                alt={song.title}
+                className={`w-12 h-12 rounded-xl object-cover border border-[var(--primary)]/20 ${
+                  isPlaying ? 'shadow-[0_0_14px_rgba(83,242,224,0.15)]' : ''
+                }`}
+              />
+              {isPlaying && (
+                <div className="absolute -bottom-0.5 -right-0.5 flex items-end gap-[1.5px] bg-[var(--card-bg)] rounded px-0.5 py-0.5">
+                  <span className="w-[2px] rounded-full bg-[var(--primary)] eq-bar-1" />
+                  <span className="w-[2px] rounded-full bg-[var(--primary)] eq-bar-2" />
+                  <span className="w-[2px] rounded-full bg-[var(--primary)] eq-bar-3" />
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-semibold text-[var(--text)] truncate leading-tight">{song.title}</p>
+              <p className="text-[11px] text-[var(--text-light)] truncate mt-0.5">{song.singers || song.artist}</p>
+            </div>
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+              <button
+                onClick={() => setLiked(!liked)}
+                className={`p-2 rounded-full transition-colors ${liked ? 'text-red-400' : 'text-[var(--text-light)]/60'}`}
+              >
+                <Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />
+              </button>
+              <button onClick={playPrev} className="p-2 text-[var(--text-light)]/70 active:text-[var(--text)] transition-colors">
+                <SkipBack className="w-5 h-5" />
+              </button>
+              <button
+                onClick={togglePlay}
+                className="w-11 h-11 rounded-full bg-[var(--primary)] text-[var(--bg)] flex items-center justify-center active:scale-95 transition-transform glow-primary"
+              >
+                {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+              </button>
+              <button onClick={playNext} className="p-2 text-[var(--text-light)]/70 active:text-[var(--text)] transition-colors">
+                <SkipForward className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          {/* Progress bar + time */}
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-[9px] text-[var(--text-light)]/60 tabular-nums w-7 text-right">
+              {formatTime(currentTime)}
+            </span>
+            <div className="flex-1 h-1 rounded-full bg-white/10 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[var(--primary-dark)] to-[var(--primary)] transition-[width] duration-150"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <span className="text-[9px] text-[var(--text-light)]/60 tabular-nums w-7">{formatTime(duration)}</span>
+          </div>
         </div>
       </div>
-    </div>
     </div>
   );
 }
@@ -543,7 +597,11 @@ function ArtistCard({ artist, songCount, coverUrl, isActive, onClick }) {
           : 'hover:bg-[var(--card-bg)]/60 border border-transparent hover:border-[var(--primary)]/10'
       }`}
     >
-      <div className={`relative w-20 h-20 rounded-full overflow-hidden border-2 transition-colors ${isActive ? 'border-[var(--primary)]' : 'border-white/10 group-hover:border-[var(--primary)]/40'}`}>
+      <div
+        className={`relative w-20 h-20 rounded-full overflow-hidden border-2 transition-colors ${
+          isActive ? 'border-[var(--primary)]' : 'border-white/10 group-hover:border-[var(--primary)]/40'
+        }`}
+      >
         {coverUrl ? (
           <img src={mediaUrl(coverUrl)} alt={artist} className="w-full h-full object-cover" />
         ) : (
@@ -558,8 +616,12 @@ function ArtistCard({ artist, songCount, coverUrl, isActive, onClick }) {
         )}
       </div>
       <div className="text-center min-w-0 w-full">
-        <p className={`text-sm font-semibold truncate ${isActive ? 'text-[var(--primary)]' : 'text-[var(--text)]'}`}>{artist}</p>
-        <p className="text-[11px] text-[var(--text-light)]">{songCount} {songCount === 1 ? 'track' : 'tracks'}</p>
+        <p className={`text-sm font-semibold truncate ${isActive ? 'text-[var(--primary)]' : 'text-[var(--text)]'}`}>
+          {artist}
+        </p>
+        <p className="text-[11px] text-[var(--text-light)]">
+          {songCount} {songCount === 1 ? 'track' : 'tracks'}
+        </p>
       </div>
     </button>
   );
@@ -569,7 +631,11 @@ function ArtistCard({ artist, songCount, coverUrl, isActive, onClick }) {
 function SongCard({ song, isPlaying, onPlay, onEdit, onDelete, onAddToPlaylist, viewMode }) {
   if (viewMode === 'list') {
     return (
-      <div className={`group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 ${isPlaying ? 'bg-[var(--primary)]/5 border border-[var(--primary)]/10' : 'hover:bg-white/5 border border-transparent'}`}>
+      <div
+        className={`group flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 ${
+          isPlaying ? 'bg-[var(--primary)]/5 border border-[var(--primary)]/10' : 'hover:bg-white/5 border border-transparent'
+        }`}
+      >
         <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
           <img src={mediaUrl(song.coverUrl)} alt={song.title} className="w-full h-full object-cover" />
           <button
@@ -589,20 +655,32 @@ function SongCard({ song, isPlaying, onPlay, onEdit, onDelete, onAddToPlaylist, 
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className={`text-sm font-medium truncate ${isPlaying ? 'text-[var(--primary)]' : 'text-[var(--text)]'}`}>{song.title}</p>
+          <p className={`text-sm font-medium truncate ${isPlaying ? 'text-[var(--primary)]' : 'text-[var(--text)]'}`}>
+            {song.title}
+          </p>
           <p className="text-xs text-[var(--text-light)] truncate">{song.singers || song.artist}</p>
         </div>
         <span className="text-xs text-[var(--text-light)]/60 hidden sm:block">{song.category || 'Other'}</span>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           {onAddToPlaylist && (
-            <button onClick={() => onAddToPlaylist(song)} className="p-2 rounded-lg hover:bg-[var(--primary)]/20 text-[var(--text-light)] hover:text-[var(--primary)] transition-colors" title="Add to playlist">
+            <button
+              onClick={() => onAddToPlaylist(song)}
+              className="p-2 rounded-lg hover:bg-[var(--primary)]/20 text-[var(--text-light)] hover:text-[var(--primary)] transition-colors"
+              title="Add to playlist"
+            >
               <ListMusic className="w-3.5 h-3.5" />
             </button>
           )}
-          <button onClick={() => onEdit(song)} className="p-2 rounded-lg hover:bg-white/10 text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
+          <button
+            onClick={() => onEdit(song)}
+            className="p-2 rounded-lg hover:bg-white/10 text-[var(--text-light)] hover:text-[var(--text)] transition-colors"
+          >
             <Edit3 className="w-3.5 h-3.5" />
           </button>
-          <button onClick={() => onDelete(song.id)} className="p-2 rounded-lg hover:bg-red-500/20 text-[var(--text-light)] hover:text-red-400 transition-colors">
+          <button
+            onClick={() => onDelete(song.id)}
+            className="p-2 rounded-lg hover:bg-red-500/20 text-[var(--text-light)] hover:text-red-400 transition-colors"
+          >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -611,9 +689,17 @@ function SongCard({ song, isPlaying, onPlay, onEdit, onDelete, onAddToPlaylist, 
   }
 
   return (
-    <div className={`group relative rounded-2xl overflow-hidden glass-card transition-all duration-200 hover:border-[var(--primary)]/20 hover:shadow-lg ${isPlaying ? 'border-[var(--primary)]/20 shadow-[0_0_24px_rgba(83,242,224,0.08)]' : ''}`}>
+    <div
+      className={`group relative rounded-2xl overflow-hidden glass-card transition-all duration-200 hover:border-[var(--primary)]/20 hover:shadow-lg ${
+        isPlaying ? 'border-[var(--primary)]/20 shadow-[0_0_24px_rgba(83,242,224,0.08)]' : ''
+      }`}
+    >
       <div className="relative aspect-square overflow-hidden">
-        <img src={mediaUrl(song.coverUrl)} alt={song.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        <img
+          src={mediaUrl(song.coverUrl)}
+          alt={song.title}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-[var(--card-bg)] via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         <button
           onClick={() => onPlay(song)}
@@ -633,20 +719,37 @@ function SongCard({ song, isPlaying, onPlay, onEdit, onDelete, onAddToPlaylist, 
         )}
       </div>
       <div className="p-4">
-        <h4 className={`font-semibold truncate text-sm ${isPlaying ? 'text-[var(--primary)]' : 'text-[var(--text)]'}`}>{song.title}</h4>
+        <h4 className={`font-semibold truncate text-sm ${isPlaying ? 'text-[var(--primary)]' : 'text-[var(--text)]'}`}>
+          {song.title}
+        </h4>
         <p className="text-xs text-[var(--text-light)] truncate mt-0.5">{song.singers || song.artist}</p>
         <div className="flex items-center justify-between mt-3">
-          <span className="text-[10px] text-[var(--text-light)]/60 uppercase tracking-wider">{song.category || 'Other'}{song.genre ? ` · ${song.genre}` : ''}</span>
+          <span className="text-[10px] text-[var(--text-light)]/60 uppercase tracking-wider">
+            {song.category || 'Other'}
+            {song.genre ? ` · ${song.genre}` : ''}
+          </span>
           <div className="flex items-center gap-1">
             {onAddToPlaylist && (
-              <button onClick={() => onAddToPlaylist(song)} className="p-1.5 rounded-lg hover:bg-[var(--primary)]/20 text-[var(--text-light)] hover:text-[var(--primary)] transition-colors" title="Add to playlist">
+              <button
+                onClick={() => onAddToPlaylist(song)}
+                className="p-1.5 rounded-lg hover:bg-[var(--primary)]/20 text-[var(--text-light)] hover:text-[var(--primary)] transition-colors"
+                title="Add to playlist"
+              >
                 <ListMusic className="w-3.5 h-3.5" />
               </button>
             )}
-            <button onClick={() => onEdit(song)} className="p-1.5 rounded-lg hover:bg-white/10 text-[var(--text-light)] hover:text-[var(--text)] transition-colors" title="Edit">
+            <button
+              onClick={() => onEdit(song)}
+              className="p-1.5 rounded-lg hover:bg-white/10 text-[var(--text-light)] hover:text-[var(--text)] transition-colors"
+              title="Edit"
+            >
               <Edit3 className="w-3.5 h-3.5" />
             </button>
-            <button onClick={() => onDelete(song.id)} className="p-1.5 rounded-lg hover:bg-red-500/20 text-[var(--text-light)] hover:text-red-400 transition-colors" title="Delete">
+            <button
+              onClick={() => onDelete(song.id)}
+              className="p-1.5 rounded-lg hover:bg-red-500/20 text-[var(--text-light)] hover:text-red-400 transition-colors"
+              title="Delete"
+            >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -660,9 +763,7 @@ function SongCard({ song, isPlaying, onPlay, onEdit, onDelete, onAddToPlaylist, 
 export default function App() {
   const [accessToken, setAccessToken] = useState(localStorage.getItem('azaad_access_token') || '');
   const [storedAuthMode, setStoredAuthMode] = useState(localStorage.getItem('azaad_auth_mode') || 'email');
-  const [isLoggedIn, setIsLoggedIn] = useState(
-    Boolean(localStorage.getItem('azaad_access_token'))
-  );
+  const [isLoggedIn, setIsLoggedIn] = useState(Boolean(localStorage.getItem('azaad_access_token')));
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [isSignup, setIsSignup] = useState(false);
@@ -718,6 +819,7 @@ export default function App() {
 
   const successTimer = useRef(null);
   const searchInputRef = useRef(null);
+  const blobUrlsRef = useRef([]);
 
   const [profile, setProfile] = useState({
     adminName: localStorage.getItem('admin_name') || 'Azad Hossain',
@@ -759,8 +861,32 @@ export default function App() {
 
   const getAuthHeaders = useCallback(() => {
     const token = localStorage.getItem('azaad_access_token');
-    return token ? { 'Authorization': `Bearer ${token}` } : {};
+    return token ? { Authorization: `Bearer ${token}` } : {};
   }, []);
+
+  const authFetch = useCallback(
+    async (url, options = {}) => {
+      let token = localStorage.getItem('azaad_access_token');
+      const headers = {
+        ...options.headers,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+
+      let res = await fetch(url, { ...options, headers });
+      if (res.status === 401) {
+        token = await refreshAccessToken();
+        if (token) {
+          const retryHeaders = {
+            ...options.headers,
+            Authorization: `Bearer ${token}`,
+          };
+          res = await fetch(url, { ...options, headers: retryHeaders });
+        }
+      }
+      return res;
+    },
+    [refreshAccessToken]
+  );
 
   const showSuccess = (message, timeout = 2500) => {
     if (successTimer.current) clearTimeout(successTimer.current);
@@ -773,35 +899,23 @@ export default function App() {
     setInitLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_BASE}?limit=200`);
+      const res = await authFetch(`${API_BASE}?limit=200`);
       if (!res.ok) throw new Error('Failed to fetch songs.');
       const data = await res.json();
-      const songList = Array.isArray(data) ? data : (data.songs || []);
+      const songList = Array.isArray(data) ? data : data.songs || [];
       setSongs(songList.map((song, index) => normalizeSong(song, index)));
     } catch (err) {
       setError(err.message || 'Server connection failed.');
     } finally {
       setInitLoading(false);
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, authFetch]);
 
   const fetchProfile = useCallback(async () => {
     const mode = localStorage.getItem('azaad_auth_mode');
     if (mode !== 'email') return;
-    let token = localStorage.getItem('azaad_access_token');
-    if (!token) return;
     try {
-      let res = await fetch(`${SERVER_BASE}/api/profile-view`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (res.status === 401) {
-        token = await refreshAccessToken();
-        if (token) {
-          res = await fetch(`${SERVER_BASE}/api/profile-view`, {
-            headers: { 'Authorization': `Bearer ${token}` },
-          });
-        }
-      }
+      const res = await authFetch(`${SERVER_BASE}/api/profile-view`);
       if (!res.ok) {
         console.warn('Profile fetch failed:', res.status);
         return;
@@ -826,35 +940,31 @@ export default function App() {
     } catch (err) {
       console.warn('Profile fetch error:', err.message);
     }
-  }, [refreshAccessToken]);
+  }, [authFetch]);
 
   const fetchPlaylists = useCallback(async () => {
     try {
       setPlaylistsLoading(true);
-      const res = await fetch(`${SERVER_BASE}/api/playlists`);
+      const res = await authFetch(`${SERVER_BASE}/api/playlists`);
       if (res.ok) {
         const data = await res.json();
-        setPlaylists(data.playlists || []);
+        setPlaylists(Array.isArray(data.playlists) ? data.playlists : []);
       }
-    } catch { /* ignore */ } finally {
+    } catch {
+      /* ignore */
+    } finally {
       setPlaylistsLoading(false);
     }
-  }, []);
+  }, [authFetch]);
 
   const createPlaylist = async (name, description) => {
     setError('');
     try {
-      let token = localStorage.getItem('azaad_access_token');
-      const makeReq = (t) => fetch(`${SERVER_BASE}/api/playlists`, {
+      const res = await authFetch(`${SERVER_BASE}/api/playlists`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, description }),
       });
-      let res = await makeReq(token);
-      if (res.status === 401) {
-        token = await refreshAccessToken();
-        if (token) res = await makeReq(token);
-      }
       if (!res.ok) {
         const data = await res.json();
         setError(data.error || 'Failed to create playlist.');
@@ -873,66 +983,52 @@ export default function App() {
   const deletePlaylist = async (id) => {
     if (!window.confirm('Delete this playlist?')) return;
     try {
-      let token = localStorage.getItem('azaad_access_token');
-      const makeReq = (t) => fetch(`${SERVER_BASE}/api/playlists/${id}`, {
+      const res = await authFetch(`${SERVER_BASE}/api/playlists/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${t}` },
       });
-      let res = await makeReq(token);
-      if (res.status === 401) {
-        token = await refreshAccessToken();
-        if (token) res = await makeReq(token);
-      }
       if (res.ok) {
         setPlaylists((prev) => prev.filter((p) => p.id !== id));
         if (activePlaylist?.id === id) setActivePlaylist(null);
         showSuccess('Playlist deleted.');
       }
-    } catch { setError('Could not reach the server.'); }
+    } catch {
+      setError('Could not reach the server.');
+    }
   };
 
   const addSongToPlaylist = async (playlistId, songId) => {
     try {
-      let token = localStorage.getItem('azaad_access_token');
-      const makeReq = (t) => fetch(`${SERVER_BASE}/api/playlists/${playlistId}/songs`, {
+      const res = await authFetch(`${SERVER_BASE}/api/playlists/${playlistId}/songs`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ songId }),
       });
-      let res = await makeReq(token);
-      if (res.status === 401) {
-        token = await refreshAccessToken();
-        if (token) res = await makeReq(token);
-      }
       if (res.ok) {
         const updated = await res.json();
-        setPlaylists((prev) => prev.map((p) => p.id === updated.id ? updated : p));
+        setPlaylists((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
         if (activePlaylist?.id === updated.id) setActivePlaylist(updated);
         showSuccess('Added to playlist!');
       }
-    } catch { setError('Could not reach the server.'); }
+    } catch {
+      setError('Could not reach the server.');
+    }
     setAddToPlaylistSong(null);
   };
 
   const removeSongFromPlaylist = async (playlistId, songId) => {
     try {
-      let token = localStorage.getItem('azaad_access_token');
-      const makeReq = (t) => fetch(`${SERVER_BASE}/api/playlists/${playlistId}/songs/${songId}`, {
+      const res = await authFetch(`${SERVER_BASE}/api/playlists/${playlistId}/songs/${songId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${t}` },
       });
-      let res = await makeReq(token);
-      if (res.status === 401) {
-        token = await refreshAccessToken();
-        if (token) res = await makeReq(token);
-      }
       if (res.ok) {
         const updated = await res.json();
-        setPlaylists((prev) => prev.map((p) => p.id === updated.id ? updated : p));
+        setPlaylists((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
         if (activePlaylist?.id === updated.id) setActivePlaylist(updated);
         showSuccess('Removed from playlist.');
       }
-    } catch { setError('Could not reach the server.'); }
+    } catch {
+      setError('Could not reach the server.');
+    }
   };
 
   useEffect(() => {
@@ -941,7 +1037,7 @@ export default function App() {
       if (!token) return;
       try {
         const res = await fetch(`${SERVER_BASE}/api/me`, {
-          headers: { 'Authorization': `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${token}` },
         });
         if (res.status === 401) {
           const refreshed = await refreshAccessToken();
@@ -953,7 +1049,9 @@ export default function App() {
             setIsLoggedIn(false);
           }
         }
-      } catch { /* ignore network errors on load */ }
+      } catch {
+        /* ignore network errors on load */
+      }
     };
     tryRefreshOnLoad();
   }, [refreshAccessToken]);
@@ -976,14 +1074,31 @@ export default function App() {
     }
   }, []);
 
-  useEffect(() => { fetchSongs(); }, [fetchSongs]);
-  useEffect(() => { if (isLoggedIn) fetchPlaylists(); }, [isLoggedIn, fetchPlaylists]);
-  useEffect(() => { if (isLoggedIn) fetchProfile(); }, [isLoggedIn, fetchProfile]);
-  useEffect(() => () => { if (successTimer.current) clearTimeout(successTimer.current); }, []);
+  useEffect(() => {
+    fetchSongs();
+  }, [fetchSongs]);
+  useEffect(() => {
+    if (isLoggedIn) fetchPlaylists();
+  }, [isLoggedIn, fetchPlaylists]);
+  useEffect(() => {
+    if (isLoggedIn) fetchProfile();
+  }, [isLoggedIn, fetchProfile]);
+
+  useEffect(() => {
+    return () => {
+      if (successTimer.current) clearTimeout(successTimer.current);
+      blobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (e) => {
-      if (e.key === '/' && view === 'library' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+      if (
+        e.key === '/' &&
+        view === 'library' &&
+        !['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) &&
+        !e.target.isContentEditable
+      ) {
         e.preventDefault();
         searchInputRef.current?.focus();
       }
@@ -1013,58 +1128,71 @@ export default function App() {
     setLoading(true);
     setError('');
     try {
-      {
-        if (!loginEmail.trim() || !loginPassword) { setError('Email and password are required.'); return; }
+      if (!loginEmail.trim() || !loginPassword) {
+        setError('Email and password are required.');
+        return;
+      }
 
-        if (isSignup) {
-          const signupRes = await fetch(`${SERVER_BASE}/api/auth/signup`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: loginEmail.trim(), password: loginPassword, fullName: signupName.trim() }),
-          });
-          const signupData = await signupRes.json();
-          if (!signupRes.ok) { setError(signupData.error || 'Signup failed.'); return; }
-          if (signupData.session?.access_token) {
-            localStorage.setItem('azaad_access_token', signupData.session.access_token);
-            if (signupData.session.refresh_token) localStorage.setItem('azaad_refresh_token', signupData.session.refresh_token);
-            localStorage.setItem('azaad_auth_mode', 'email');
-            if (signupData.user?.email) {
-              localStorage.setItem('admin_email', signupData.user.email);
-              setProfile((prev) => ({ ...prev, adminEmail: signupData.user.email }));
-            }
-            if (signupName.trim()) {
-              localStorage.setItem('admin_name', signupName.trim());
-              setProfile((prev) => ({ ...prev, adminName: signupName.trim() }));
-            }
-            setAccessToken(signupData.session.access_token);
-            setStoredAuthMode('email');
-            setIsLoggedIn(true);
-            return;
-          }
-          setIsSignup(false);
-          setError('');
-          showSuccess('Account created! Please sign in.');
-          return;
-        }
-
-        const res = await fetch(`${SERVER_BASE}/api/login`, {
+      if (isSignup) {
+        const signupRes = await fetch(`${SERVER_BASE}/api/auth/signup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: loginEmail.trim(), password: loginPassword }),
+          body: JSON.stringify({
+            email: loginEmail.trim(),
+            password: loginPassword,
+            fullName: signupName.trim(),
+          }),
         });
-        const data = await res.json();
-        if (!res.ok || !data.ok) { setError(data.error || 'Login failed.'); return; }
-        localStorage.setItem('azaad_access_token', data.accessToken);
-        if (data.refreshToken) localStorage.setItem('azaad_refresh_token', data.refreshToken);
-        localStorage.setItem('azaad_auth_mode', 'email');
-        if (data.user?.email) {
-          localStorage.setItem('admin_email', data.user.email);
-          setProfile((prev) => ({ ...prev, adminEmail: data.user.email }));
+        const signupData = await signupRes.json();
+        if (!signupRes.ok) {
+          setError(signupData.error || 'Signup failed.');
+          return;
         }
-        setAccessToken(data.accessToken);
-        setStoredAuthMode('email');
-        setIsLoggedIn(true);
+        if (signupData.session?.access_token) {
+          localStorage.setItem('azaad_access_token', signupData.session.access_token);
+          if (signupData.session.refresh_token) {
+            localStorage.setItem('azaad_refresh_token', signupData.session.refresh_token);
+          }
+          localStorage.setItem('azaad_auth_mode', 'email');
+          if (signupData.user?.email) {
+            localStorage.setItem('admin_email', signupData.user.email);
+            setProfile((prev) => ({ ...prev, adminEmail: signupData.user.email }));
+          }
+          if (signupName.trim()) {
+            localStorage.setItem('admin_name', signupName.trim());
+            setProfile((prev) => ({ ...prev, adminName: signupName.trim() }));
+          }
+          setAccessToken(signupData.session.access_token);
+          setStoredAuthMode('email');
+          setIsLoggedIn(true);
+          return;
+        }
+        setIsSignup(false);
+        setError('');
+        showSuccess('Account created! Please sign in.');
+        return;
       }
+
+      const res = await fetch(`${SERVER_BASE}/api/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: loginEmail.trim(), password: loginPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setError(data.error || 'Login failed.');
+        return;
+      }
+      localStorage.setItem('azaad_access_token', data.accessToken);
+      if (data.refreshToken) localStorage.setItem('azaad_refresh_token', data.refreshToken);
+      localStorage.setItem('azaad_auth_mode', 'email');
+      if (data.user?.email) {
+        localStorage.setItem('admin_email', data.user.email);
+        setProfile((prev) => ({ ...prev, adminEmail: data.user.email }));
+      }
+      setAccessToken(data.accessToken);
+      setStoredAuthMode('email');
+      setIsLoggedIn(true);
     } catch {
       setError('Could not reach the server.');
     } finally {
@@ -1078,9 +1206,11 @@ export default function App() {
       try {
         await fetch(`${SERVER_BASE}/api/logout`, {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${token}` },
         });
-      } catch { /* proceed with local logout even if server call fails */ }
+      } catch {
+        /* proceed with local logout */
+      }
     }
     localStorage.removeItem('azaad_access_token');
     localStorage.removeItem('azaad_refresh_token');
@@ -1132,23 +1262,14 @@ export default function App() {
     setChangePwLoading(true);
     setError('');
     try {
-      let token = localStorage.getItem('azaad_access_token');
-      const makeRequest = (t) => fetch(`${SERVER_BASE}/api/change-password`, {
+      const res = await authFetch(`${SERVER_BASE}/api/change-password`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${t}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           currentPassword: changeCurrentPw,
           newPassword: changeNewPw,
         }),
       });
-      let res = await makeRequest(token);
-      if (res.status === 401) {
-        token = await refreshAccessToken();
-        if (token) res = await makeRequest(token);
-      }
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || 'Password change failed.');
@@ -1181,7 +1302,7 @@ export default function App() {
       const res = await fetch(`${SERVER_BASE}/api/reset-password`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${recoveryToken}`,
+          Authorization: `Bearer ${recoveryToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ password: recoveryNewPw }),
@@ -1223,51 +1344,33 @@ export default function App() {
       e.target.value = '';
       return;
     }
+
     const url = URL.createObjectURL(file);
+    blobUrlsRef.current.push(url);
     setPreviews((prev) => ({ ...prev, [target]: url }));
     setError('');
+
     if (target === 'avatar') {
       setProfile((prev) => ({ ...prev, adminPhoto: url }));
-
       const mode = localStorage.getItem('azaad_auth_mode');
       if (mode === 'email') {
-        let token = localStorage.getItem('azaad_access_token');
-        if (token) {
-          const fd = new FormData();
-          fd.append('avatar', file);
-          const uploadAvatar = async (t) => {
-            const res = await fetch(`${SERVER_BASE}/api/profile/avatar`, {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${t}` },
-              body: fd,
-            });
-            return res;
-          };
-          try {
-            let res = await uploadAvatar(token);
-            if (res.status === 401) {
-              token = await refreshAccessToken();
-              if (token) {
-                const fd2 = new FormData();
-                fd2.append('avatar', file);
-                res = await fetch(`${SERVER_BASE}/api/profile/avatar`, {
-                  method: 'POST',
-                  headers: { 'Authorization': `Bearer ${token}` },
-                  body: fd2,
-                });
-              }
-            }
-            const data = await res.json();
-            if (data.avatarUrl) {
-              setProfile((prev) => ({ ...prev, adminPhoto: data.avatarUrl }));
-              localStorage.setItem('admin_photo', data.avatarUrl);
-              showSuccess('Avatar uploaded.');
-            } else if (data.error) {
-              setError(data.error);
-            }
-          } catch {
-            setError('Avatar upload failed.');
+        const fd = new FormData();
+        fd.append('avatar', file);
+        try {
+          const res = await authFetch(`${SERVER_BASE}/api/profile/avatar`, {
+            method: 'POST',
+            body: fd,
+          });
+          const data = await res.json();
+          if (data.avatarUrl) {
+            setProfile((prev) => ({ ...prev, adminPhoto: data.avatarUrl }));
+            localStorage.setItem('admin_photo', data.avatarUrl);
+            showSuccess('Avatar uploaded.');
+          } else if (data.error) {
+            setError(data.error);
           }
+        } catch {
+          setError('Avatar upload failed.');
         }
       }
     }
@@ -1288,13 +1391,13 @@ export default function App() {
       if (coverUrlInput.trim()) fd.set('coverUrl', coverUrlInput.trim());
     }
 
-    fd.set('featured', String(e.target.featured.checked));
-    fd.set('trending', String(e.target.trending.checked));
+    fd.set('featured', String(e.target.featured?.checked || false));
+    fd.set('trending', String(e.target.trending?.checked || false));
     if (!fd.get('category')) fd.set('category', 'Other');
+
     try {
-      const res = await fetch(API_BASE, {
+      const res = await authFetch(API_BASE, {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: fd,
       });
       const data = await res.json();
@@ -1318,9 +1421,8 @@ export default function App() {
   const deleteTrack = async (id) => {
     if (!window.confirm('Delete this track permanently?')) return;
     try {
-      const res = await fetch(`${API_BASE}/${id}`, {
+      const res = await authFetch(`${API_BASE}/${id}`, {
         method: 'DELETE',
-        headers: getAuthHeaders(),
       });
       if (!res.ok) {
         const d = await res.json();
@@ -1338,9 +1440,9 @@ export default function App() {
     setEditLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_BASE}/${id}`, {
+      const res = await authFetch(`${API_BASE}/${id}`, {
         method: 'PUT',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
       const data = await res.json();
@@ -1373,34 +1475,23 @@ export default function App() {
 
     const mode = localStorage.getItem('azaad_auth_mode');
     if (mode === 'email') {
-      let token = localStorage.getItem('azaad_access_token');
-      if (token) {
-        try {
-          const makeRequest = (t) => fetch(`${SERVER_BASE}/api/profile`, {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${t}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              fullName: updated.adminName,
-              bio: updated.bio,
-            }),
-          });
-          let res = await makeRequest(token);
-          if (res.status === 401) {
-            token = await refreshAccessToken();
-            if (token) res = await makeRequest(token);
-          }
-          if (!res.ok) {
-            const data = await res.json();
-            setError(data.error || 'Profile sync failed.');
-            return;
-          }
-        } catch {
-          setError('Could not sync profile to server.');
+      try {
+        const res = await authFetch(`${SERVER_BASE}/api/profile`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fullName: updated.adminName,
+            bio: updated.bio,
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          setError(data.error || 'Profile sync failed.');
           return;
         }
+      } catch {
+        setError('Could not sync profile to server.');
+        return;
       }
     }
     showSuccess('Profile saved.');
@@ -1414,8 +1505,11 @@ export default function App() {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return list;
     return list.filter((song) =>
-      [song.title, song.artist, song.category, song.genre, song.singers, song.type, song.vibe]
-        .some((v) => String(v || '').toLowerCase().includes(q))
+      [song.title, song.artist, song.category, song.genre, song.singers, song.type, song.vibe].some((v) =>
+        String(v || '')
+          .toLowerCase()
+          .includes(q)
+      )
     );
   }, [songs, searchQuery, selectedArtist]);
 
@@ -1435,9 +1529,10 @@ export default function App() {
     { id: 'profile', label: 'Profile', icon: User },
   ];
 
-  const inputClass = 'w-full px-4 py-3 rounded-xl bg-[var(--bg)]/60 border border-[var(--primary)]/10 text-[var(--text)] placeholder-[var(--text-light)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-colors';
+  const inputClass =
+    'w-full px-4 py-3 rounded-xl bg-[var(--bg)]/60 border border-[var(--primary)]/10 text-[var(--text)] placeholder-[var(--text-light)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-colors';
 
-  // ─── Recovery Mode (password reset from email link) ─────────────────────────
+  // ─── Recovery Mode ───────────────────────────────────────────────────────────
   if (isRecoveryMode) {
     return (
       <div className="min-h-screen app-bg flex items-center justify-center p-6 relative">
@@ -1463,7 +1558,11 @@ export default function App() {
                 placeholder="New password (min 6 chars)"
                 className="w-full pl-11 pr-12 py-4 rounded-xl glass-card text-[var(--text)] placeholder-[var(--text-light)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-colors"
               />
-              <button type="button" onClick={() => setShowRecoveryPw(!showRecoveryPw)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-light)] hover:text-[var(--text)]">
+              <button
+                type="button"
+                onClick={() => setShowRecoveryPw(!showRecoveryPw)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-light)] hover:text-[var(--text)]"
+              >
                 {showRecoveryPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
@@ -1501,7 +1600,10 @@ export default function App() {
           <p className="text-center text-sm text-[var(--text-light)] mt-4">
             <button
               type="button"
-              onClick={() => { setIsRecoveryMode(false); setError(''); }}
+              onClick={() => {
+                setIsRecoveryMode(false);
+                setError('');
+              }}
               className="text-[var(--primary)] hover:underline font-medium"
             >
               Back to Sign In
@@ -1512,7 +1614,7 @@ export default function App() {
     );
   }
 
-  // ─── Login Screen ──────────────────────────────────────────────────────────
+  // ─── Login Screen ────────────────────────────────────────────────────────────
   if (!isLoggedIn) {
     if (isForgotPassword) {
       return (
@@ -1559,7 +1661,11 @@ export default function App() {
             <p className="text-center text-sm text-[var(--text-light)] mt-4">
               <button
                 type="button"
-                onClick={() => { setIsForgotPassword(false); setError(''); setForgotEmail(''); }}
+                onClick={() => {
+                  setIsForgotPassword(false);
+                  setError('');
+                  setForgotEmail('');
+                }}
                 className="text-[var(--primary)] hover:underline font-medium"
               >
                 Back to Sign In
@@ -1625,7 +1731,11 @@ export default function App() {
               <div className="text-right">
                 <button
                   type="button"
-                  onClick={() => { setIsForgotPassword(true); setError(''); setForgotEmail(loginEmail); }}
+                  onClick={() => {
+                    setIsForgotPassword(true);
+                    setError('');
+                    setForgotEmail(loginEmail);
+                  }}
                   className="text-xs text-[var(--primary)] hover:underline"
                 >
                   Forgot password?
@@ -1646,8 +1756,12 @@ export default function App() {
               disabled={loading}
               className="w-full py-4 rounded-xl bg-[var(--primary-dark)] hover:bg-[var(--primary)] text-[var(--bg)] font-bold disabled:opacity-50 transition-all flex items-center justify-center gap-2 glow-primary"
             >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (isSignup ? <UserPlus className="w-4 h-4" /> : null)}
-              {loading ? 'Authenticating...' : (isSignup ? 'Create Account' : 'Sign In')}
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : isSignup ? (
+                <UserPlus className="w-4 h-4" />
+              ) : null}
+              {loading ? 'Authenticating...' : isSignup ? 'Create Account' : 'Sign In'}
             </button>
           </form>
 
@@ -1655,7 +1769,10 @@ export default function App() {
             {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
             <button
               type="button"
-              onClick={() => { setIsSignup(!isSignup); setError(''); }}
+              onClick={() => {
+                setIsSignup(!isSignup);
+                setError('');
+              }}
               className="text-[var(--primary)] hover:underline font-medium"
             >
               {isSignup ? 'Sign In' : 'Sign Up'}
@@ -1666,19 +1783,18 @@ export default function App() {
     );
   }
 
-  // Calculate bottom padding based on player + mobile nav
   const bottomPad = currentSong ? 'pb-48 md:pb-24' : 'pb-20 md:pb-0';
 
-  // ─── Main App Layout ──────────────────────────────────────────────────────
   return (
     <div className={`min-h-screen app-bg text-[var(--text)] flex relative ${bottomPad}`}>
       <div className="absolute inset-0 bg-[var(--bg)]/75" />
 
       {/* Desktop / Tablet Sidebar */}
       <aside
-        className={`hidden md:flex sidebar-slide ${sidebarOpen ? 'sidebar-expanded' : 'sidebar-collapsed'} sticky top-0 z-40 h-screen flex-col bg-[var(--sidebar-bg)]/95 backdrop-blur-xl border-r border-[var(--primary)]/8`}
+        className={`hidden md:flex sidebar-slide ${
+          sidebarOpen ? 'sidebar-expanded' : 'sidebar-collapsed'
+        } sticky top-0 z-40 h-screen flex-col bg-[var(--sidebar-bg)]/95 backdrop-blur-xl border-r border-[var(--primary)]/8`}
       >
-        {/* Logo + collapse toggle */}
         {sidebarOpen ? (
           <div className="pt-5 pb-4 px-4 grid grid-cols-[1fr_auto_1fr] items-center">
             <div />
@@ -1706,13 +1822,18 @@ export default function App() {
           </div>
         )}
 
-        {/* Navigation */}
         <nav className="flex-1 px-2 lg:px-3 mt-1 overflow-y-auto">
-          <p className="sidebar-section-label text-[10px] uppercase tracking-[0.2em] text-[var(--text-light)]/50 px-3 mb-2">Menu</p>
+          <p className="sidebar-section-label text-[10px] uppercase tracking-[0.2em] text-[var(--text-light)]/50 px-3 mb-2">
+            Menu
+          </p>
           {navItems.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              onClick={() => { setView(id); if (id !== 'library') setSelectedArtist(null); if (id !== 'playlists') setActivePlaylist(null); }}
+              onClick={() => {
+                setView(id);
+                if (id !== 'library') setSelectedArtist(null);
+                if (id !== 'playlists') setActivePlaylist(null);
+              }}
               title={label}
               className={`sidebar-nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all mb-1 ${
                 view === id
@@ -1725,15 +1846,19 @@ export default function App() {
             </button>
           ))}
 
-          {/* Quick artist list in sidebar (only when expanded) */}
           <div className="sidebar-artists">
             {artists.length > 0 && (
               <div className="mt-4">
-                <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-light)]/50 px-3 mb-2">Top Artists</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--text-light)]/50 px-3 mb-2">
+                  Top Artists
+                </p>
                 {artists.slice(0, 5).map((a) => (
                   <button
                     key={a.name}
-                    onClick={() => { setSelectedArtist(a.name === selectedArtist ? null : a.name); setView('library'); }}
+                    onClick={() => {
+                      setSelectedArtist(a.name === selectedArtist ? null : a.name);
+                      setView('library');
+                    }}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all mb-0.5 ${
                       selectedArtist === a.name
                         ? 'bg-[var(--accent)]/15 text-[var(--accent)]'
@@ -1758,10 +1883,13 @@ export default function App() {
           </div>
         </nav>
 
-        {/* Profile quick + logout */}
         <div className="px-2 lg:px-3 pb-4 pt-2 space-y-2 border-t border-[var(--primary)]/5">
           <div className="sidebar-profile-row flex items-center gap-3 px-3 py-2">
-            <img src={profile.adminPhoto} alt={profile.adminName} className="w-8 h-8 rounded-full object-cover border border-[var(--primary)]/20 flex-shrink-0" />
+            <img
+              src={profile.adminPhoto}
+              alt={profile.adminName}
+              className="w-8 h-8 rounded-full object-cover border border-[var(--primary)]/20 flex-shrink-0"
+            />
             <div className="sidebar-profile-info min-w-0">
               <p className="text-xs font-medium text-[var(--text)] truncate">{profile.adminName}</p>
               <p className="text-[10px] text-[var(--text-light)] truncate">{profile.adminEmail}</p>
@@ -1780,13 +1908,17 @@ export default function App() {
 
       {/* Main content */}
       <main className="flex-1 min-w-0 relative z-10">
-        {/* Top bar — Desktop */}
         <header className="hidden md:flex sticky top-0 z-20 bg-[var(--bg)]/80 backdrop-blur-xl border-b border-[var(--primary)]/8 px-6 py-4 items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             {selectedArtist ? (
               <h2 className="text-lg font-bold text-[var(--text)] truncate">
                 <span className="flex items-center gap-2 min-w-0">
-                  <button onClick={() => setSelectedArtist(null)} className="text-[var(--text-light)] hover:text-[var(--text)] transition-colors flex-shrink-0">Library</button>
+                  <button
+                    onClick={() => setSelectedArtist(null)}
+                    className="text-[var(--text-light)] hover:text-[var(--text)] transition-colors flex-shrink-0"
+                  >
+                    Library
+                  </button>
                   <ChevronRight className="w-4 h-4 text-[var(--text-light)] flex-shrink-0" />
                   <span className="text-[var(--primary)] truncate">{selectedArtist}</span>
                 </span>
@@ -1797,46 +1929,66 @@ export default function App() {
               </h2>
             )}
           </div>
-          <button onClick={fetchSongs} className="p-2 rounded-lg hover:bg-white/10 text-[var(--text-light)] hover:text-[var(--text)] transition-colors flex-shrink-0" title="Refresh">
+          <button
+            onClick={fetchSongs}
+            className="p-2 rounded-lg hover:bg-white/10 text-[var(--text-light)] hover:text-[var(--text)] transition-colors flex-shrink-0"
+            title="Refresh"
+          >
             <RefreshCw className={`w-4 h-4 ${initLoading ? 'animate-spin' : ''}`} />
           </button>
         </header>
 
-        {/* Top bar — Mobile */}
         <header className="md:hidden sticky top-0 z-20 bg-[var(--bg)]/80 backdrop-blur-xl border-b border-[var(--primary)]/8">
           <div className="flex items-center justify-between px-4 py-3">
-            {/* Left: section info */}
             <div className="flex items-center gap-2 min-w-0 flex-1">
               {selectedArtist ? (
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <button onClick={() => setSelectedArtist(null)} className="text-xs text-[var(--text-light)] hover:text-[var(--text)] transition-colors flex-shrink-0">Library</button>
+                  <button
+                    onClick={() => setSelectedArtist(null)}
+                    className="text-xs text-[var(--text-light)] hover:text-[var(--text)] transition-colors flex-shrink-0"
+                  >
+                    Library
+                  </button>
                   <ChevronRight className="w-3 h-3 text-[var(--text-light)]/50 flex-shrink-0" />
                   <span className="text-xs font-semibold text-[var(--primary)] truncate">{selectedArtist}</span>
                 </div>
               ) : (
                 <div className="min-w-0">
-                  <h2 className="text-sm font-bold text-[var(--text)] truncate">{navItems.find((n) => n.id === view)?.label || 'Library'}</h2>
-                  <p className="text-[10px] text-[var(--text-light)]/60 truncate">Hey, {profile.adminName.split(' ')[0]}</p>
+                  <h2 className="text-sm font-bold text-[var(--text)] truncate">
+                    {navItems.find((n) => n.id === view)?.label || 'Library'}
+                  </h2>
+                  <p className="text-[10px] text-[var(--text-light)]/60 truncate">
+                    Hey, {profile.adminName.split(' ')[0]}
+                  </p>
                 </div>
               )}
             </div>
 
-            {/* Center: Logo */}
             <img src={LOGO_URL} alt="Azaad" className="w-9 h-9 rounded-lg object-contain flex-shrink-0" />
 
-            {/* Right: actions */}
             <div className="flex items-center gap-1 flex-shrink-0 flex-1 justify-end">
-              <button onClick={fetchSongs} className="p-2 rounded-xl hover:bg-white/10 text-[var(--text-light)] hover:text-[var(--text)] transition-colors" title="Refresh">
+              <button
+                onClick={fetchSongs}
+                className="p-2 rounded-xl hover:bg-white/10 text-[var(--text-light)] hover:text-[var(--text)] transition-colors"
+                title="Refresh"
+              >
                 <RefreshCw className={`w-4 h-4 ${initLoading ? 'animate-spin' : ''}`} />
               </button>
-              <button onClick={() => setView('profile')} className="p-1 rounded-xl hover:bg-white/10 transition-colors" title="Profile">
-                <img src={profile.adminPhoto} alt="" className="w-7 h-7 rounded-lg object-cover border border-[var(--primary)]/10" />
+              <button
+                onClick={() => setView('profile')}
+                className="p-1 rounded-xl hover:bg-white/10 transition-colors"
+                title="Profile"
+              >
+                <img
+                  src={profile.adminPhoto}
+                  alt=""
+                  className="w-7 h-7 rounded-lg object-cover border border-[var(--primary)]/10"
+                />
               </button>
             </div>
           </div>
         </header>
 
-        {/* Notifications */}
         <div className="px-4 md:px-6 pt-3 md:pt-4 space-y-2">
           {success && (
             <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3">
@@ -1846,7 +1998,9 @@ export default function App() {
           {error && (
             <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
               <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
-              <button onClick={() => setError('')} className="ml-auto p-1 hover:bg-white/10 rounded"><X className="w-3 h-3" /></button>
+              <button onClick={() => setError('')} className="ml-auto p-1 hover:bg-white/10 rounded">
+                <X className="w-3 h-3" />
+              </button>
             </div>
           )}
         </div>
@@ -1855,7 +2009,6 @@ export default function App() {
           {/* ─── Library View ──────────────────────────────────────────── */}
           {view === 'library' && (
             <div className="space-y-5">
-              {/* Search + controls */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1">
                   <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-light)]" />
@@ -1866,7 +2019,9 @@ export default function App() {
                     placeholder="Search tracks..."
                     className="w-full pl-11 pr-12 py-3 rounded-xl glass-card text-[var(--text)] placeholder-[var(--text-light)] focus:outline-none focus:border-[var(--primary)] transition-colors"
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-light)]/50 bg-white/5 px-1.5 py-0.5 rounded">/</span>
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-[var(--text-light)]/50 bg-white/5 px-1.5 py-0.5 rounded">
+                    /
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   {selectedArtist && (
@@ -1877,17 +2032,32 @@ export default function App() {
                       <X className="w-3 h-3" /> {selectedArtist}
                     </button>
                   )}
-                  <button onClick={() => setViewMode('grid')} className={`p-2.5 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'text-[var(--text-light)] hover:text-[var(--text)] hover:bg-white/5'}`} title="Grid view">
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`p-2.5 rounded-lg transition-colors ${
+                      viewMode === 'grid'
+                        ? 'bg-[var(--primary)]/15 text-[var(--primary)]'
+                        : 'text-[var(--text-light)] hover:text-[var(--text)] hover:bg-white/5'
+                    }`}
+                    title="Grid view"
+                  >
                     <LayoutGrid className="w-4 h-4" />
                   </button>
-                  <button onClick={() => setViewMode('list')} className={`p-2.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-[var(--primary)]/15 text-[var(--primary)]' : 'text-[var(--text-light)] hover:text-[var(--text)] hover:bg-white/5'}`} title="List view">
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`p-2.5 rounded-lg transition-colors ${
+                      viewMode === 'list'
+                        ? 'bg-[var(--primary)]/15 text-[var(--primary)]'
+                        : 'text-[var(--text-light)] hover:text-[var(--text)] hover:bg-white/5'
+                    }`}
+                    title="List view"
+                  >
                     <List className="w-4 h-4" />
                   </button>
                   <span className="text-xs text-[var(--text-light)]/60 ml-2">{filteredSongs.length} tracks</span>
                 </div>
               </div>
 
-              {/* Song list */}
               {initLoading ? (
                 <div className="flex items-center justify-center py-20">
                   <Loader2 className="w-6 h-6 animate-spin text-[var(--primary)]" />
@@ -1895,7 +2065,13 @@ export default function App() {
               ) : filteredSongs.length === 0 ? (
                 <div className="text-center py-20 rounded-2xl glass-card">
                   <Music2 className="w-10 h-10 text-[var(--text-light)]/40 mx-auto mb-3" />
-                  <p className="text-[var(--text-light)] mb-4">{searchQuery ? 'No matching tracks found.' : selectedArtist ? `No tracks by ${selectedArtist}.` : 'Your library is empty.'}</p>
+                  <p className="text-[var(--text-light)] mb-4">
+                    {searchQuery
+                      ? 'No matching tracks found.'
+                      : selectedArtist
+                      ? `No tracks by ${selectedArtist}.`
+                      : 'Your library is empty.'}
+                  </p>
                   {!searchQuery && !selectedArtist && (
                     <button
                       onClick={() => setView('upload')}
@@ -1945,7 +2121,9 @@ export default function App() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-bold text-[var(--text)]">Your Playlists</h2>
-                  <p className="text-xs text-[var(--text-light)]">{playlists.length} playlist{playlists.length !== 1 ? 's' : ''}</p>
+                  <p className="text-xs text-[var(--text-light)]">
+                    {playlists.length} playlist{playlists.length !== 1 ? 's' : ''}
+                  </p>
                 </div>
                 <button
                   onClick={() => setShowCreatePlaylist(true)}
@@ -1973,7 +2151,9 @@ export default function App() {
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
                   {playlists.map((pl) => {
-                    const plSongs = pl.songIds.map((sid) => songs.find((s) => s.id === sid)).filter(Boolean);
+                    const plSongs = (pl.songIds || [])
+                      .map((sid) => songs.find((s) => s.id === sid))
+                      .filter(Boolean);
                     const coverSong = plSongs[0];
                     return (
                       <div
@@ -1983,7 +2163,11 @@ export default function App() {
                       >
                         <div className="aspect-square bg-gradient-to-br from-[var(--primary)]/20 via-[var(--accent)]/10 to-[var(--primary-dark)]/10 relative overflow-hidden">
                           {coverSong ? (
-                            <img src={mediaUrl(coverSong.coverUrl)} alt={pl.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                            <img
+                              src={mediaUrl(coverSong.coverUrl)}
+                              alt={pl.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
                               <ListMusic className="w-12 h-12 text-[var(--primary)]/30" />
@@ -1991,7 +2175,10 @@ export default function App() {
                           )}
                           <div className="absolute inset-0 bg-gradient-to-t from-[var(--card-bg)] via-transparent to-transparent" />
                           <button
-                            onClick={(e) => { e.stopPropagation(); deletePlaylist(pl.id); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deletePlaylist(pl.id);
+                            }}
                             className="absolute top-2 right-2 p-2 rounded-lg bg-black/50 text-white/70 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
                             title="Delete playlist"
                           >
@@ -2000,8 +2187,12 @@ export default function App() {
                         </div>
                         <div className="p-4">
                           <h4 className="font-semibold truncate text-sm text-[var(--text)]">{pl.name}</h4>
-                          <p className="text-xs text-[var(--text-light)] mt-0.5">{pl.songIds.length} track{pl.songIds.length !== 1 ? 's' : ''}</p>
-                          {pl.description && <p className="text-xs text-[var(--text-light)]/60 mt-1 truncate">{pl.description}</p>}
+                          <p className="text-xs text-[var(--text-light)] mt-0.5">
+                            {pl.songIds?.length || 0} track{(pl.songIds?.length || 0) !== 1 ? 's' : ''}
+                          </p>
+                          {pl.description && (
+                            <p className="text-xs text-[var(--text-light)]/60 mt-1 truncate">{pl.description}</p>
+                          )}
                         </div>
                       </div>
                     );
@@ -2023,13 +2214,19 @@ export default function App() {
                 </button>
                 <div className="flex-1 min-w-0">
                   <h2 className="text-lg font-bold text-[var(--text)] truncate">{activePlaylist.name}</h2>
-                  {activePlaylist.description && <p className="text-xs text-[var(--text-light)] truncate">{activePlaylist.description}</p>}
+                  {activePlaylist.description && (
+                    <p className="text-xs text-[var(--text-light)] truncate">{activePlaylist.description}</p>
+                  )}
                 </div>
-                <span className="text-xs text-[var(--text-light)]">{activePlaylist.songIds.length} track{activePlaylist.songIds.length !== 1 ? 's' : ''}</span>
-                {activePlaylist.songIds.length > 0 && (
+                <span className="text-xs text-[var(--text-light)]">
+                  {activePlaylist.songIds?.length || 0} track{(activePlaylist.songIds?.length || 0) !== 1 ? 's' : ''}
+                </span>
+                {activePlaylist.songIds?.length > 0 && (
                   <button
                     onClick={() => {
-                      const plSongs = activePlaylist.songIds.map((sid) => songs.find((s) => s.id === sid)).filter(Boolean);
+                      const plSongs = activePlaylist.songIds
+                        .map((sid) => songs.find((s) => s.id === sid))
+                        .filter(Boolean);
                       if (plSongs.length > 0) setCurrentSong(plSongs[0]);
                     }}
                     className="px-4 py-2 rounded-xl bg-[var(--primary-dark)] hover:bg-[var(--primary)] text-[var(--bg)] text-sm font-semibold inline-flex items-center gap-2 transition-all glow-primary"
@@ -2039,20 +2236,27 @@ export default function App() {
                 )}
               </div>
 
-              {activePlaylist.songIds.length === 0 ? (
+              {activePlaylist.songIds?.length === 0 ? (
                 <div className="text-center py-16 rounded-2xl glass-card">
                   <Music2 className="w-10 h-10 text-[var(--text-light)]/40 mx-auto mb-3" />
                   <p className="text-[var(--text-light)] mb-2">This playlist is empty.</p>
-                  <p className="text-xs text-[var(--text-light)]/60">Go to Library and use the menu on any track to add it here.</p>
+                  <p className="text-xs text-[var(--text-light)]/60">
+                    Go to Library and use the menu on any track to add it here.
+                  </p>
                 </div>
               ) : (
                 <div className="rounded-2xl glass-card divide-y divide-[var(--primary)]/5">
-                  {activePlaylist.songIds.map((sid) => {
+                  {activePlaylist.songIds?.map((sid) => {
                     const song = songs.find((s) => s.id === sid);
                     if (!song) return null;
                     const isPlaying = currentSong?.id === song.id;
                     return (
-                      <div key={song.id} className={`group flex items-center gap-4 px-4 py-3 transition-all duration-200 ${isPlaying ? 'bg-[var(--primary)]/5' : 'hover:bg-white/5'}`}>
+                      <div
+                        key={song.id}
+                        className={`group flex items-center gap-4 px-4 py-3 transition-all duration-200 ${
+                          isPlaying ? 'bg-[var(--primary)]/5' : 'hover:bg-white/5'
+                        }`}
+                      >
                         <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
                           <img src={mediaUrl(song.coverUrl)} alt={song.title} className="w-full h-full object-cover" />
                           <button
@@ -2063,7 +2267,9 @@ export default function App() {
                           </button>
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className={`text-sm font-medium truncate ${isPlaying ? 'text-[var(--primary)]' : 'text-[var(--text)]'}`}>{song.title}</p>
+                          <p className={`text-sm font-medium truncate ${isPlaying ? 'text-[var(--primary)]' : 'text-[var(--text)]'}`}>
+                            {song.title}
+                          </p>
                           <p className="text-xs text-[var(--text-light)] truncate">{song.singers || song.artist}</p>
                         </div>
                         <button
@@ -2087,7 +2293,9 @@ export default function App() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg md:text-xl font-bold text-[var(--text)]">All Artists</h3>
-                  <p className="text-xs md:text-sm text-[var(--text-light)] mt-0.5 md:mt-1">{artists.length} {artists.length === 1 ? 'artist' : 'artists'} in your library</p>
+                  <p className="text-xs md:text-sm text-[var(--text-light)] mt-0.5 md:mt-1">
+                    {artists.length} {artists.length === 1 ? 'artist' : 'artists'} in your library
+                  </p>
                 </div>
               </div>
 
@@ -2143,7 +2351,11 @@ export default function App() {
                   <div>
                     <label className="text-xs text-[var(--text-light)] mb-1.5 block">Category</label>
                     <select name="category" defaultValue="Other" className={inputClass}>
-                      {CATEGORY_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                      {CATEGORY_OPTIONS.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -2167,10 +2379,26 @@ export default function App() {
                   <div className="flex items-center justify-between">
                     <label className="text-xs text-[var(--text-light)]">Audio *</label>
                     <div className="flex rounded-lg glass-card p-0.5">
-                      <button type="button" onClick={() => setAudioUploadMode('file')} className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all flex items-center gap-1 ${audioUploadMode === 'file' ? 'bg-[var(--primary-dark)] text-[var(--bg)]' : 'text-[var(--text-light)] hover:text-[var(--text)]'}`}>
+                      <button
+                        type="button"
+                        onClick={() => setAudioUploadMode('file')}
+                        className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all flex items-center gap-1 ${
+                          audioUploadMode === 'file'
+                            ? 'bg-[var(--primary-dark)] text-[var(--bg)]'
+                            : 'text-[var(--text-light)] hover:text-[var(--text)]'
+                        }`}
+                      >
                         <Upload className="w-3 h-3" /> File
                       </button>
-                      <button type="button" onClick={() => setAudioUploadMode('url')} className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all flex items-center gap-1 ${audioUploadMode === 'url' ? 'bg-[var(--primary-dark)] text-[var(--bg)]' : 'text-[var(--text-light)] hover:text-[var(--text)]'}`}>
+                      <button
+                        type="button"
+                        onClick={() => setAudioUploadMode('url')}
+                        className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all flex items-center gap-1 ${
+                          audioUploadMode === 'url'
+                            ? 'bg-[var(--primary-dark)] text-[var(--bg)]'
+                            : 'text-[var(--text-light)] hover:text-[var(--text)]'
+                        }`}
+                      >
                         <Link className="w-3 h-3" /> URL
                       </button>
                     </div>
@@ -2185,11 +2413,20 @@ export default function App() {
                       ) : (
                         <>
                           <Music2 className="w-6 h-6 text-[var(--text-light)] group-hover:text-[var(--primary)] transition-colors" />
-                          <span className="text-xs text-[var(--text-light)] group-hover:text-[var(--primary)] transition-colors">Upload audio file</span>
+                          <span className="text-xs text-[var(--text-light)] group-hover:text-[var(--primary)] transition-colors">
+                            Upload audio file
+                          </span>
                           <span className="text-[10px] text-[var(--text-light)]/50">MP3, WAV, OGG up to 100MB</span>
                         </>
                       )}
-                      <input type="file" name="audio" accept="audio/*" onChange={(e) => handleFilePreview(e, 'audio')} className="hidden" required />
+                      <input
+                        type="file"
+                        name="audio"
+                        accept="audio/*"
+                        onChange={(e) => handleFilePreview(e, 'audio')}
+                        className="hidden"
+                        required={audioUploadMode === 'file'}
+                      />
                     </label>
                   ) : (
                     <div className="space-y-2">
@@ -2199,7 +2436,7 @@ export default function App() {
                           type="url"
                           value={audioUrlInput}
                           onChange={(e) => setAudioUrlInput(e.target.value)}
-                          required
+                          required={audioUploadMode === 'url'}
                           placeholder="https://...s3.amazonaws.com/.../song.mp3"
                           className="w-full pl-10 pr-4 py-3 rounded-xl glass-card text-[var(--text)] text-sm placeholder-[var(--text-light)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-colors"
                         />
@@ -2214,10 +2451,26 @@ export default function App() {
                   <div className="flex items-center justify-between">
                     <label className="text-xs text-[var(--text-light)]">Cover Art *</label>
                     <div className="flex rounded-lg glass-card p-0.5">
-                      <button type="button" onClick={() => setCoverUploadMode('file')} className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all flex items-center gap-1 ${coverUploadMode === 'file' ? 'bg-[var(--primary-dark)] text-[var(--bg)]' : 'text-[var(--text-light)] hover:text-[var(--text)]'}`}>
+                      <button
+                        type="button"
+                        onClick={() => setCoverUploadMode('file')}
+                        className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all flex items-center gap-1 ${
+                          coverUploadMode === 'file'
+                            ? 'bg-[var(--primary-dark)] text-[var(--bg)]'
+                            : 'text-[var(--text-light)] hover:text-[var(--text)]'
+                        }`}
+                      >
                         <Upload className="w-3 h-3" /> File
                       </button>
-                      <button type="button" onClick={() => setCoverUploadMode('url')} className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all flex items-center gap-1 ${coverUploadMode === 'url' ? 'bg-[var(--primary-dark)] text-[var(--bg)]' : 'text-[var(--text-light)] hover:text-[var(--text)]'}`}>
+                      <button
+                        type="button"
+                        onClick={() => setCoverUploadMode('url')}
+                        className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all flex items-center gap-1 ${
+                          coverUploadMode === 'url'
+                            ? 'bg-[var(--primary-dark)] text-[var(--bg)]'
+                            : 'text-[var(--text-light)] hover:text-[var(--text)]'
+                        }`}
+                      >
                         <Link className="w-3 h-3" /> URL
                       </button>
                     </div>
@@ -2229,11 +2482,20 @@ export default function App() {
                       ) : (
                         <>
                           <ImageIcon className="w-6 h-6 text-[var(--text-light)] group-hover:text-[var(--primary)] transition-colors" />
-                          <span className="text-xs text-[var(--text-light)] group-hover:text-[var(--primary)] transition-colors">Upload cover art</span>
+                          <span className="text-xs text-[var(--text-light)] group-hover:text-[var(--primary)] transition-colors">
+                            Upload cover art
+                          </span>
                           <span className="text-[10px] text-[var(--text-light)]/50">JPG, PNG up to 15MB</span>
                         </>
                       )}
-                      <input type="file" name="cover" accept="image/*" onChange={(e) => handleFilePreview(e, 'cover')} className="hidden" required />
+                      <input
+                        type="file"
+                        name="cover"
+                        accept="image/*"
+                        onChange={(e) => handleFilePreview(e, 'cover')}
+                        className="hidden"
+                        required={coverUploadMode === 'file'}
+                      />
                     </label>
                   ) : (
                     <div className="space-y-2">
@@ -2243,14 +2505,21 @@ export default function App() {
                           type="url"
                           value={coverUrlInput}
                           onChange={(e) => setCoverUrlInput(e.target.value)}
-                          required
+                          required={coverUploadMode === 'url'}
                           placeholder="https://...s3.amazonaws.com/.../cover.png"
                           className="w-full pl-10 pr-4 py-3 rounded-xl glass-card text-[var(--text)] text-sm placeholder-[var(--text-light)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition-colors"
                         />
                       </div>
                       {coverUrlInput.trim() && (
                         <div className="rounded-xl overflow-hidden border border-[var(--primary)]/10 h-20">
-                          <img src={coverUrlInput.trim()} alt="Cover preview" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
+                          <img
+                            src={coverUrlInput.trim()}
+                            alt="Cover preview"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                          />
                         </div>
                       )}
                       <p className="text-[10px] text-[var(--text-light)]/50 px-1">Paste an S3 or any public image URL</p>
@@ -2281,17 +2550,25 @@ export default function App() {
           {/* ─── Profile View ─────────────────────────────────────────── */}
           {view === 'profile' && (
             <div className="max-w-2xl mx-auto space-y-6">
-              {/* Profile Header */}
               <div className="relative overflow-hidden rounded-2xl glass-card">
                 <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary)]/15 via-[var(--accent)]/10 to-[var(--primary-dark)]/5" />
                 <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--primary)]/5 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl" />
                 <div className="relative p-8 flex flex-col sm:flex-row items-center gap-6">
                   <label className="relative cursor-pointer group flex-shrink-0">
-                    <img src={profile.adminPhoto} alt={profile.adminName} className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border-2 border-[var(--primary)]/20 shadow-lg" />
+                    <img
+                      src={profile.adminPhoto}
+                      alt={profile.adminName}
+                      className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border-2 border-[var(--primary)]/20 shadow-lg"
+                    />
                     <span className="absolute inset-0 bg-black/50 rounded-2xl opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center backdrop-blur-[2px]">
                       <Camera className="w-6 h-6 text-white" />
                     </span>
-                    <input type="file" accept="image/*" onChange={(e) => handleFilePreview(e, 'avatar')} className="hidden" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFilePreview(e, 'avatar')}
+                      className="hidden"
+                    />
                   </label>
                   <div className="text-center sm:text-left flex-1 min-w-0">
                     <h2 className="text-2xl font-bold text-[var(--text)] truncate">{profile.adminName}</h2>
@@ -2314,7 +2591,11 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setProfileTab('account')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${profileTab === 'account' ? 'bg-[var(--primary)]/15 text-[var(--primary)] shadow-sm' : 'text-[var(--text-light)] hover:text-[var(--text)] hover:bg-white/5'}`}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
+                    profileTab === 'account'
+                      ? 'bg-[var(--primary)]/15 text-[var(--primary)] shadow-sm'
+                      : 'text-[var(--text-light)] hover:text-[var(--text)] hover:bg-white/5'
+                  }`}
                 >
                   <User className="w-4 h-4" /> Account
                 </button>
@@ -2322,7 +2603,11 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setProfileTab('security')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${profileTab === 'security' ? 'bg-[var(--primary)]/15 text-[var(--primary)] shadow-sm' : 'text-[var(--text-light)] hover:text-[var(--text)] hover:bg-white/5'}`}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
+                      profileTab === 'security'
+                        ? 'bg-[var(--primary)]/15 text-[var(--primary)] shadow-sm'
+                        : 'text-[var(--text-light)] hover:text-[var(--text)] hover:bg-white/5'
+                    }`}
                   >
                     <Shield className="w-4 h-4" /> Security
                   </button>
@@ -2354,7 +2639,13 @@ export default function App() {
                       <label className="text-xs text-[var(--text-light)] mb-1.5 flex items-center gap-1.5 font-medium">
                         <PenLine className="w-3 h-3" /> Bio
                       </label>
-                      <textarea name="bio" defaultValue={profile.bio} rows={3} className={`${inputClass} resize-none`} placeholder="Tell us about yourself..." />
+                      <textarea
+                        name="bio"
+                        defaultValue={profile.bio}
+                        rows={3}
+                        className={`${inputClass} resize-none`}
+                        placeholder="Tell us about yourself..."
+                      />
                     </div>
                   </div>
                   <button className="w-full py-3.5 rounded-xl bg-[var(--primary-dark)] hover:bg-[var(--primary)] text-[var(--bg)] font-bold flex items-center justify-center gap-2 transition-all glow-primary">
@@ -2383,7 +2674,11 @@ export default function App() {
                           className={inputClass}
                           placeholder="Enter current password"
                         />
-                        <button type="button" onClick={() => setShowChangePw(!showChangePw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
+                        <button
+                          type="button"
+                          onClick={() => setShowChangePw(!showChangePw)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-light)] hover:text-[var(--text)] transition-colors"
+                        >
                           {showChangePw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
@@ -2424,7 +2719,7 @@ export default function App() {
                       </p>
                     )}
                     <button
-                      disabled={changePwLoading || (changeNewPw && changeConfirmPw && changeNewPw !== changeConfirmPw)}
+                      disabled={changePwLoading || Boolean(changeNewPw && changeConfirmPw && changeNewPw !== changeConfirmPw)}
                       className="w-full py-3.5 rounded-xl bg-[var(--primary-dark)] hover:bg-[var(--primary)] text-[var(--bg)] font-bold flex items-center justify-center gap-2 transition-all glow-primary disabled:opacity-50"
                     >
                       {changePwLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
@@ -2442,18 +2737,32 @@ export default function App() {
                     <button
                       type="button"
                       onClick={async () => {
-                        if (!profile.adminEmail) { setError('No email address found.'); return; }
-                        setLoading(true); setError('');
+                        if (!profile.adminEmail) {
+                          setError('No email address found.');
+                          return;
+                        }
+                        setLoading(true);
+                        setError('');
                         try {
                           const res = await fetch(`${SERVER_BASE}/api/forgot-password`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ email: profile.adminEmail, redirectTo: window.location.origin }),
+                            body: JSON.stringify({
+                              email: profile.adminEmail,
+                              redirectTo: window.location.origin,
+                            }),
                           });
                           const data = await res.json();
-                          if (!res.ok) { setError(data.error || 'Failed to send reset email.'); return; }
+                          if (!res.ok) {
+                            setError(data.error || 'Failed to send reset email.');
+                            return;
+                          }
                           showSuccess('Password reset link sent! Check your email.');
-                        } catch { setError('Could not reach the server.'); } finally { setLoading(false); }
+                        } catch {
+                          setError('Could not reach the server.');
+                        } finally {
+                          setLoading(false);
+                        }
                       }}
                       disabled={loading}
                       className="w-full py-3 rounded-xl border border-[var(--primary)]/20 text-[var(--primary)] hover:bg-[var(--primary)]/10 font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 text-sm"
@@ -2465,7 +2774,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* Sign Out */}
               <button
                 type="button"
                 onClick={confirmLogout}
@@ -2514,12 +2822,17 @@ export default function App() {
               className="space-y-4"
             >
               <div>
-                <label className="text-xs text-[var(--text-light)] mb-1.5 block font-medium">Playlist Name</label>
+                <label className="text-xs text-[var(--text-light)] mb-1.5 block font-medium">Playlist Name *</label>
                 <input name="name" required placeholder="My awesome playlist" className={inputClass} />
               </div>
               <div>
                 <label className="text-xs text-[var(--text-light)] mb-1.5 block font-medium">Description (optional)</label>
-                <textarea name="description" rows={2} placeholder="What's this playlist about?" className={`${inputClass} resize-none`} />
+                <textarea
+                  name="description"
+                  rows={2}
+                  placeholder="What's this playlist about?"
+                  className={`${inputClass} resize-none`}
+                />
               </div>
               <button className="w-full py-3.5 rounded-xl bg-[var(--primary-dark)] hover:bg-[var(--primary)] text-[var(--bg)] font-bold flex items-center justify-center gap-2 transition-all glow-primary">
                 <Plus className="w-4 h-4" /> Create Playlist
@@ -2547,7 +2860,10 @@ export default function App() {
               <div className="text-center py-6">
                 <p className="text-sm text-[var(--text-light)] mb-3">No playlists yet.</p>
                 <button
-                  onClick={() => { setAddToPlaylistSong(null); setShowCreatePlaylist(true); }}
+                  onClick={() => {
+                    setAddToPlaylistSong(null);
+                    setShowCreatePlaylist(true);
+                  }}
                   className="px-4 py-2 rounded-xl bg-[var(--primary-dark)] hover:bg-[var(--primary)] text-[var(--bg)] text-sm font-semibold inline-flex items-center gap-2 transition-all"
                 >
                   <Plus className="w-4 h-4" /> Create Playlist
@@ -2556,20 +2872,25 @@ export default function App() {
             ) : (
               <div className="space-y-1.5 max-h-64 overflow-y-auto">
                 {playlists.map((pl) => {
-                  const alreadyIn = pl.songIds.includes(addToPlaylistSong.id);
+                  const alreadyIn = (pl.songIds || []).includes(addToPlaylistSong.id);
                   return (
                     <button
                       key={pl.id}
                       disabled={alreadyIn}
                       onClick={() => addSongToPlaylist(pl.id, addToPlaylistSong.id)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${alreadyIn ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/5'}`}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${
+                        alreadyIn ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/5'
+                      }`}
                     >
                       <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--primary)]/20 to-[var(--accent)]/10 flex items-center justify-center flex-shrink-0">
                         <ListMusic className="w-4 h-4 text-[var(--primary)]" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-[var(--text)] truncate">{pl.name}</p>
-                        <p className="text-xs text-[var(--text-light)]">{pl.songIds.length} track{pl.songIds.length !== 1 ? 's' : ''}{alreadyIn ? ' · Already added' : ''}</p>
+                        <p className="text-xs text-[var(--text-light)]">
+                          {pl.songIds?.length || 0} track{(pl.songIds?.length || 0) !== 1 ? 's' : ''}
+                          {alreadyIn ? ' · Already added' : ''}
+                        </p>
                       </div>
                       {!alreadyIn && <Plus className="w-4 h-4 text-[var(--primary)] flex-shrink-0" />}
                       {alreadyIn && <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />}
@@ -2584,48 +2905,67 @@ export default function App() {
 
       {/* Audio Player Bar */}
       {currentSong && (
-        <PlayerBar
-          song={currentSong}
-          songs={songs}
-          onChangeSong={setCurrentSong}
-          hasBottomNav={true}
-        />
+        <PlayerBar song={currentSong} songs={songs} onChangeSong={setCurrentSong} hasBottomNav={true} />
       )}
 
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden mobile-bottom-nav" style={{ overflow: 'visible' }}>
         <div className="relative player-glass border-t border-[var(--primary)]/10" style={{ overflow: 'visible' }}>
           <div className="flex items-end justify-around px-2 pb-0.5 pt-1" style={{ overflow: 'visible' }}>
-            {/* Left: Library */}
-            {(() => { const item = navItems.find(n => n.id === 'library'); const Icon = item.icon; const active = view === 'library'; return (
-              <button
-                onClick={() => { setView('library'); setActivePlaylist(null); }}
-                className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all ${active ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60'}`}
-              >
-                <div className={`p-1.5 rounded-xl transition-all ${active ? 'bg-[var(--primary)]/15' : ''}`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <span className="text-[10px] font-medium">{item.label}</span>
-              </button>
-            ); })()}
+            {/* Library */}
+            {(() => {
+              const item = navItems.find((n) => n.id === 'library');
+              const Icon = item.icon;
+              const active = view === 'library';
+              return (
+                <button
+                  onClick={() => {
+                    setView('library');
+                    setActivePlaylist(null);
+                  }}
+                  className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all ${
+                    active ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60'
+                  }`}
+                >
+                  <div className={`p-1.5 rounded-xl transition-all ${active ? 'bg-[var(--primary)]/15' : ''}`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-medium">{item.label}</span>
+                </button>
+              );
+            })()}
 
             {/* Playlists */}
-            {(() => { const item = navItems.find(n => n.id === 'playlists'); const Icon = item.icon; const active = view === 'playlists'; return (
-              <button
-                onClick={() => { setView('playlists'); setSelectedArtist(null); }}
-                className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all ${active ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60'}`}
-              >
-                <div className={`p-1.5 rounded-xl transition-all ${active ? 'bg-[var(--primary)]/15' : ''}`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <span className="text-[10px] font-medium">{item.label}</span>
-              </button>
-            ); })()}
+            {(() => {
+              const item = navItems.find((n) => n.id === 'playlists');
+              const Icon = item.icon;
+              const active = view === 'playlists';
+              return (
+                <button
+                  onClick={() => {
+                    setView('playlists');
+                    setSelectedArtist(null);
+                  }}
+                  className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all ${
+                    active ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60'
+                  }`}
+                >
+                  <div className={`p-1.5 rounded-xl transition-all ${active ? 'bg-[var(--primary)]/15' : ''}`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-medium">{item.label}</span>
+                </button>
+              );
+            })()}
 
-            {/* Center: Upload (raised FAB) */}
+            {/* Upload (raised FAB) */}
             <div className="flex flex-col items-center -mt-5">
               <button
-                onClick={() => { setView('upload'); setSelectedArtist(null); setActivePlaylist(null); }}
+                onClick={() => {
+                  setView('upload');
+                  setSelectedArtist(null);
+                  setActivePlaylist(null);
+                }}
                 className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all ${
                   view === 'upload'
                     ? 'bg-[var(--primary)] text-[var(--bg)] shadow-[0_0_20px_rgba(83,242,224,0.3)] scale-105'
@@ -2634,34 +2974,62 @@ export default function App() {
               >
                 <Upload className="w-6 h-6" />
               </button>
-              <span className={`text-[10px] font-medium mt-1 transition-colors ${view === 'upload' ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60'}`}>Upload</span>
+              <span
+                className={`text-[10px] font-medium mt-1 transition-colors ${
+                  view === 'upload' ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60'
+                }`}
+              >
+                Upload
+              </span>
             </div>
 
             {/* Artists */}
-            {(() => { const item = navItems.find(n => n.id === 'artists'); const Icon = item.icon; const active = view === 'artists'; return (
-              <button
-                onClick={() => { setView('artists'); setSelectedArtist(null); setActivePlaylist(null); }}
-                className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all ${active ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60'}`}
-              >
-                <div className={`p-1.5 rounded-xl transition-all ${active ? 'bg-[var(--primary)]/15' : ''}`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <span className="text-[10px] font-medium">{item.label}</span>
-              </button>
-            ); })()}
+            {(() => {
+              const item = navItems.find((n) => n.id === 'artists');
+              const Icon = item.icon;
+              const active = view === 'artists';
+              return (
+                <button
+                  onClick={() => {
+                    setView('artists');
+                    setSelectedArtist(null);
+                    setActivePlaylist(null);
+                  }}
+                  className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all ${
+                    active ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60'
+                  }`}
+                >
+                  <div className={`p-1.5 rounded-xl transition-all ${active ? 'bg-[var(--primary)]/15' : ''}`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-medium">{item.label}</span>
+                </button>
+              );
+            })()}
 
-            {/* Right: Profile */}
-            {(() => { const item = navItems.find(n => n.id === 'profile'); const Icon = item.icon; const active = view === 'profile'; return (
-              <button
-                onClick={() => { setView('profile'); setSelectedArtist(null); setActivePlaylist(null); }}
-                className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all ${active ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60'}`}
-              >
-                <div className={`p-1.5 rounded-xl transition-all ${active ? 'bg-[var(--primary)]/15' : ''}`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <span className="text-[10px] font-medium">{item.label}</span>
-              </button>
-            ); })()}
+            {/* Profile */}
+            {(() => {
+              const item = navItems.find((n) => n.id === 'profile');
+              const Icon = item.icon;
+              const active = view === 'profile';
+              return (
+                <button
+                  onClick={() => {
+                    setView('profile');
+                    setSelectedArtist(null);
+                    setActivePlaylist(null);
+                  }}
+                  className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all ${
+                    active ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60'
+                  }`}
+                >
+                  <div className={`p-1.5 rounded-xl transition-all ${active ? 'bg-[var(--primary)]/15' : ''}`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-medium">{item.label}</span>
+                </button>
+              );
+            })()}
           </div>
         </div>
       </nav>

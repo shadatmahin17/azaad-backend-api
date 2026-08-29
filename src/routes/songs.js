@@ -8,6 +8,7 @@ const { readSongs, writeSongs } = require('../utils/songs');
 const { normalizeMediaUrl, isAllowedMediaUrl } = require('../utils/media');
 const { normalizeCategory } = require('../utils/category');
 const { uploadToSupabaseBucket, removeFromSupabaseBucket } = require('../utils/storage');
+const { syncSupabaseStorageSongs } = require('../utils/supabaseSync');
 const { ROOT_DIR, SUPABASE_SONGS_BUCKET } = require('../config/env');
 
 const router = express.Router();
@@ -15,8 +16,20 @@ const router = express.Router();
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 
-router.get('/', (req, res) => {
-  const songs = readSongs();
+router.get('/sync', async (req, res) => {
+  try {
+    const synced = await syncSupabaseStorageSongs();
+    res.json({ message: 'Synchronized songs from Supabase Storage', total: synced.length, songs: synced });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/', async (req, res) => {
+  let songs = readSongs();
+  if (songs.length === 0) {
+    songs = await syncSupabaseStorageSongs();
+  }
 
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
   const limit = Math.min(

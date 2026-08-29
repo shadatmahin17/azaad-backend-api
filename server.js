@@ -31,9 +31,13 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve uploaded media files
+// Serve uploaded media files (support both /uploads/covers and /uploads/cover)
 if (AUDIO_DIR) app.use('/uploads/audio', express.static(AUDIO_DIR));
-if (COVER_DIR) app.use('/uploads/cover', express.static(COVER_DIR));
+if (COVER_DIR) {
+  app.use('/uploads/covers', express.static(COVER_DIR));
+  app.use('/uploads/cover', express.static(COVER_DIR));
+}
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Health check endpoint
 app.get('/health', (req, res) => {

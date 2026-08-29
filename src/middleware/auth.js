@@ -24,7 +24,7 @@ function extractBearerToken(req) {
   const authHeader = req.headers.authorization || '';
   if (typeof authHeader !== 'string') return '';
   const match = authHeader.match(/^Bearer\s+(.+)$/i);
-  return match && match ? match.trim() : '';
+  return match && match[1] ? match[1].trim() : '';
 }
 
 function ensureSupabaseReady(res) {

@@ -11,7 +11,7 @@ function loadEnvFile(filePath) {
     if (separator < 1) return;
     const key = trimmed.slice(0, separator).trim();
     const value = trimmed.slice(separator + 1).trim();
-    if (!(key in process.env)) {
+    if (value && !(key in process.env)) {
       process.env[key] = value;
     }
   });

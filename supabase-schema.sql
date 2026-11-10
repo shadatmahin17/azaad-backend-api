@@ -187,3 +187,65 @@ CREATE POLICY "Auth insert user_events" ON public.user_events FOR INSERT TO auth
 
 DROP POLICY IF EXISTS "Users read own user_events" ON public.user_events;
 CREATE POLICY "Users read own user_events" ON public.user_events FOR SELECT TO authenticated USING (auth.uid() = user_id);
+
+-- 12. STORAGE BUCKETS & POLICIES (Avatars & Songs)
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('avatars', 'avatars', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('songs', 'songs', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+DROP POLICY IF EXISTS "Anyone can view avatars" ON storage.objects;
+CREATE POLICY "Anyone can view avatars"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'avatars');
+
+DROP POLICY IF EXISTS "Authenticated users can upload their own avatar" ON storage.objects;
+CREATE POLICY "Authenticated users can upload their own avatar"
+ON storage.objects FOR INSERT
+WITH CHECK (
+  bucket_id = 'avatars'
+  AND auth.role() = 'authenticated'
+  AND (storage.foldername(name))[1] = auth.uid()::text
+);
+
+DROP POLICY IF EXISTS "Authenticated users can update their own avatar" ON storage.objects;
+CREATE POLICY "Authenticated users can update their own avatar"
+ON storage.objects FOR UPDATE
+USING (
+  bucket_id = 'avatars'
+  AND auth.role() = 'authenticated'
+  AND (storage.foldername(name))[1] = auth.uid()::text
+);
+
+DROP POLICY IF EXISTS "Anyone can view songs media" ON storage.objects;
+CREATE POLICY "Anyone can view songs media"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'songs');
+
+DROP POLICY IF EXISTS "Authenticated users can upload songs media" ON storage.objects;
+CREATE POLICY "Authenticated users can upload songs media"
+ON storage.objects FOR INSERT
+WITH CHECK (
+  bucket_id = 'songs'
+  AND auth.role() = 'authenticated'
+);
+
+DROP POLICY IF EXISTS "Authenticated users can update songs media" ON storage.objects;
+CREATE POLICY "Authenticated users can update songs media"
+ON storage.objects FOR UPDATE
+USING (
+  bucket_id = 'songs'
+  AND auth.role() = 'authenticated'
+);
+
+DROP POLICY IF EXISTS "Authenticated users can delete songs media" ON storage.objects;
+CREATE POLICY "Authenticated users can delete songs media"
+ON storage.objects FOR DELETE
+USING (
+  bucket_id = 'songs'
+  AND auth.role() = 'authenticated'
+);
+

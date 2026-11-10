@@ -633,6 +633,8 @@ function ArtistCard({ artist, songCount, coverUrl, isActive, onClick }) {
 
 // ─── Song Card ─────────────────────────────────────────────────────────────────
 function SongCard({ song, isPlaying, onPlay, onEdit, onDelete, onAddToPlaylist, viewMode }) {
+  const [imgError, setImgError] = useState(false);
+
   if (viewMode === 'list') {
     return (
       <div
@@ -640,8 +642,17 @@ function SongCard({ song, isPlaying, onPlay, onEdit, onDelete, onAddToPlaylist, 
           isPlaying ? 'bg-[var(--primary)]/5 border border-[var(--primary)]/10' : 'hover:bg-white/5 border border-transparent'
         }`}
       >
-        <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-          <img src={mediaUrl(song.coverUrl)} alt={song.title} className="w-full h-full object-cover" />
+        <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-gradient-to-br from-[var(--primary)]/20 to-[var(--accent)]/10 flex items-center justify-center">
+          {!imgError && song.coverUrl ? (
+            <img
+              src={mediaUrl(song.coverUrl)}
+              alt={song.title}
+              onError={() => setImgError(true)}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <Music2 className="w-5 h-5 text-[var(--primary)]/60" />
+          )}
           <button
             onClick={() => onPlay(song)}
             className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
@@ -698,12 +709,17 @@ function SongCard({ song, isPlaying, onPlay, onEdit, onDelete, onAddToPlaylist, 
         isPlaying ? 'border-[var(--primary)]/20 shadow-[0_0_24px_rgba(83,242,224,0.08)]' : ''
       }`}
     >
-      <div className="relative aspect-square overflow-hidden">
-        <img
-          src={mediaUrl(song.coverUrl)}
-          alt={song.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        />
+      <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-[var(--primary)]/20 to-[var(--accent)]/10 flex items-center justify-center">
+        {!imgError && song.coverUrl ? (
+          <img
+            src={mediaUrl(song.coverUrl)}
+            alt={song.title}
+            onError={() => setImgError(true)}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <Music2 className="w-12 h-12 text-[var(--primary)]/50" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-[var(--card-bg)] via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         <button
           onClick={() => onPlay(song)}
@@ -807,9 +823,11 @@ export default function App() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('grid');
 
   const [currentSong, setCurrentSong] = useState(null);
+  const [playbackQueue, setPlaybackQueue] = useState([]);
   const [editSong, setEditSong] = useState(null);
   const [editLoading, setEditLoading] = useState(false);
 
@@ -1189,13 +1207,14 @@ export default function App() {
       }
       localStorage.setItem('azaad_access_token', data.accessToken);
       if (data.refreshToken) localStorage.setItem('azaad_refresh_token', data.refreshToken);
-      localStorage.setItem('azaad_auth_mode', 'email');
+      const authMode = data.mode || (loginEmail.includes('@') ? 'email' : 'admin');
+      localStorage.setItem('azaad_auth_mode', authMode);
       if (data.user?.email) {
         localStorage.setItem('admin_email', data.user.email);
         setProfile((prev) => ({ ...prev, adminEmail: data.user.email }));
       }
       setAccessToken(data.accessToken);
-      setStoredAuthMode('email');
+      setStoredAuthMode(authMode);
       setIsLoggedIn(true);
     } catch {
       setError('Could not reach the server.');
@@ -1347,6 +1366,13 @@ export default function App() {
       setError('Please choose a valid image file.');
       e.target.value = '';
       return;
+    }
+
+    // Revoke previous blob URL for this target to prevent memory accumulation
+    if (previews[target] && previews[target].startsWith('blob:')) {
+      try {
+        URL.revokeObjectURL(previews[target]);
+      } catch (_) {}
     }
 
     const url = URL.createObjectURL(file);
@@ -1501,12 +1527,19 @@ export default function App() {
     showSuccess('Profile saved.');
   };
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   const filteredSongs = useMemo(() => {
     let list = songs;
     if (selectedArtist) {
       list = list.filter((s) => s.artist === selectedArtist);
     }
-    const q = searchQuery.toLowerCase().trim();
+    const q = debouncedSearchQuery.toLowerCase().trim();
     if (!q) return list;
     return list.filter((song) =>
       [song.title, song.artist, song.category, song.genre, song.singers, song.type, song.vibe].some((v) =>
@@ -1515,9 +1548,14 @@ export default function App() {
           .includes(q)
       )
     );
-  }, [songs, searchQuery, selectedArtist]);
+  }, [songs, debouncedSearchQuery, selectedArtist]);
 
-  const playSong = (song) => {
+  const playSong = (song, customQueue = null) => {
+    if (customQueue && Array.isArray(customQueue)) {
+      setPlaybackQueue(customQueue);
+    } else if (playbackQueue.length === 0) {
+      setPlaybackQueue(filteredSongs.length > 0 ? filteredSongs : songs);
+    }
     if (currentSong?.id === song.id) {
       setCurrentSong(null);
     } else {
@@ -2228,10 +2266,13 @@ export default function App() {
                 {activePlaylist.songIds?.length > 0 && (
                   <button
                     onClick={() => {
-                      const plSongs = activePlaylist.songIds
+                      const plSongs = (activePlaylist.songIds || [])
                         .map((sid) => songs.find((s) => s.id === sid))
                         .filter(Boolean);
-                      if (plSongs.length > 0) setCurrentSong(plSongs[0]);
+                      if (plSongs.length > 0) {
+                        setPlaybackQueue(plSongs);
+                        playSong(plSongs[0], plSongs);
+                      }
                     }}
                     className="px-4 py-2 rounded-xl bg-[var(--primary-dark)] hover:bg-[var(--primary)] text-[var(--bg)] text-sm font-semibold inline-flex items-center gap-2 transition-all glow-primary"
                   >
@@ -2254,6 +2295,9 @@ export default function App() {
                     const song = songs.find((s) => s.id === sid);
                     if (!song) return null;
                     const isPlaying = currentSong?.id === song.id;
+                    const plSongs = (activePlaylist.songIds || [])
+                      .map((id) => songs.find((s) => s.id === id))
+                      .filter(Boolean);
                     return (
                       <div
                         key={song.id}
@@ -2264,7 +2308,7 @@ export default function App() {
                         <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
                           <img src={mediaUrl(song.coverUrl)} alt={song.title} className="w-full h-full object-cover" />
                           <button
-                            onClick={() => playSong(song)}
+                            onClick={() => playSong(song, plSongs)}
                             className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
                           >
                             {isPlaying ? <Pause className="w-4 h-4 text-white" /> : <Play className="w-4 h-4 text-white ml-0.5" />}
@@ -2909,7 +2953,12 @@ export default function App() {
 
       {/* Audio Player Bar */}
       {currentSong && (
-        <PlayerBar song={currentSong} songs={songs} onChangeSong={setCurrentSong} hasBottomNav={true} />
+        <PlayerBar
+          song={currentSong}
+          songs={playbackQueue.length > 0 ? playbackQueue : (filteredSongs.length > 0 ? filteredSongs : songs)}
+          onChangeSong={setCurrentSong}
+          hasBottomNav={true}
+        />
       )}
 
       {/* Mobile Bottom Navigation */}
@@ -2948,6 +2997,7 @@ export default function App() {
                 onClick={() => {
                   setView('playlists');
                   setSelectedArtist(null);
+                  setActivePlaylist(null);
                 }}
                 className={`flex-1 flex flex-col items-center justify-center py-1.5 transition-all ${
                   active ? 'text-[var(--primary)]' : 'text-[var(--text-light)]/60 hover:text-[var(--text)]'

@@ -10,12 +10,10 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default now()
 );
 
--- Updated_at timestamp trigger
+-- Updated_at timestamp trigger function
 create or replace function public.handle_profiles_updated_at()
 returns trigger
 language plpgsql
-security definer
-set search_path = public
 as $$
 begin
   new.updated_at = now();
@@ -63,11 +61,12 @@ create trigger on_auth_user_created
 
 alter table public.profiles enable row level security;
 
-drop policy if exists "Public profiles are viewable by everyone" on public.profiles;
-create policy "Public profiles are viewable by everyone"
+-- Allow authenticated users to read/update only their own row
+drop policy if exists "Read own profile" on public.profiles;
+create policy "Read own profile"
   on public.profiles
   for select
-  using (true);
+  using (auth.uid() = id);
 
 drop policy if exists "Insert own profile" on public.profiles;
 create policy "Insert own profile"
@@ -84,15 +83,17 @@ create policy "Update own profile"
 
 -- ─── 3. Storage Buckets Configuration ──────────────────────────────────────────
 
--- Avatars bucket
+-- Bucket used by /api/profile/avatar endpoint
 insert into storage.buckets (id, name, public)
 values ('avatars', 'avatars', true)
-on conflict (id) do nothing;
+on conflict (id) do update
+set public = true;
 
--- Songs bucket
+-- Songs bucket for audio and cover files
 insert into storage.buckets (id, name, public)
 values ('songs', 'songs', true)
-on conflict (id) do nothing;
+on conflict (id) do update
+set public = true;
 
 -- ─── 4. Storage Policies: Avatars Bucket ────────────────────────────────────────
 
@@ -107,7 +108,7 @@ create policy "Authenticated users can upload their own avatar"
   with check (
     bucket_id = 'avatars'
     and auth.role() = 'authenticated'
-    and (storage.foldername(name)) = auth.uid()::text
+    and (storage.foldername(name))[1] = auth.uid()::text
   );
 
 drop policy if exists "Authenticated users can update their own avatar" on storage.objects;
@@ -116,7 +117,7 @@ create policy "Authenticated users can update their own avatar"
   using (
     bucket_id = 'avatars'
     and auth.role() = 'authenticated'
-    and (storage.foldername(name)) = auth.uid()::text
+    and (storage.foldername(name))[1] = auth.uid()::text
   );
 
 drop policy if exists "Authenticated users can delete their own avatar" on storage.objects;
@@ -125,7 +126,7 @@ create policy "Authenticated users can delete their own avatar"
   using (
     bucket_id = 'avatars'
     and auth.role() = 'authenticated'
-    and (storage.foldername(name)) = auth.uid()::text
+    and (storage.foldername(name))[1] = auth.uid()::text
   );
 
 -- ─── 5. Storage Policies: Songs Bucket ──────────────────────────────────────────
@@ -143,26 +144,18 @@ create policy "Authenticated users can upload songs media"
     and auth.role() = 'authenticated'
   );
 
-drop policy if exists "Users can update their own songs media" on storage.objects;
-create policy "Users can update their own songs media"
+drop policy if exists "Authenticated users can update songs media" on storage.objects;
+create policy "Authenticated users can update songs media"
   on storage.objects for update
   using (
     bucket_id = 'songs'
     and auth.role() = 'authenticated'
-    and (
-      (storage.foldername(name)) = auth.uid()::text
-      or auth.uid() = owner
-    )
   );
 
-drop policy if exists "Users can delete their own songs media" on storage.objects;
-create policy "Users can delete their own songs media"
+drop policy if exists "Authenticated users can delete songs media" on storage.objects;
+create policy "Authenticated users can delete songs media"
   on storage.objects for delete
   using (
     bucket_id = 'songs'
     and auth.role() = 'authenticated'
-    and (
-      (storage.foldername(name)) = auth.uid()::text
-      or auth.uid() = owner
-    )
   );

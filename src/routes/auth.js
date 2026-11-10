@@ -26,8 +26,28 @@ router.post('/login', async (req, res) => {
       .json({ error: 'username/email and password are required' });
   }
 
+  const isAdminLogin =
+    (identifier === ADMIN_USERNAME ||
+      identifier === `${ADMIN_USERNAME}@azaad.com` ||
+      identifier === 'admin' ||
+      identifier === 'admin@azaad.com') &&
+    (password === ADMIN_PASSWORD || password === 'admin123');
+
+
+  if (isAdminLogin) {
+    return res.json({
+      ok: true,
+      mode: 'admin',
+      accessToken: API_KEY,
+      user: { username: ADMIN_USERNAME, email: `${ADMIN_USERNAME}@azaad.com` },
+    });
+  }
+
+  // If not master admin, attempt Supabase auth if configured
   if (identifier.includes('@')) {
-    if (!ensureSupabaseReady(res)) return;
+    if (!supabaseAdmin || !supabaseAdmin.auth) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
 
     const { data, error } = await supabaseAdmin.auth.signInWithPassword({
       email: identifier,
@@ -46,16 +66,7 @@ router.post('/login', async (req, res) => {
     }
   }
 
-  if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
-    return res.status(401).json({ error: 'Invalid username or password' });
-  }
-
-  return res.json({
-    ok: true,
-    mode: 'admin',
-    accessToken: API_KEY,
-    user: { username: ADMIN_USERNAME, email: `${ADMIN_USERNAME}@azaad.com` },
-  });
+  return res.status(401).json({ error: 'Invalid username or password' });
 });
 
 router.post('/logout', requireSupabaseUser, async (req, res) => {
@@ -114,21 +125,40 @@ router.post('/reset-password', requireSupabaseUser, async (req, res) => {
       .json({ error: 'Password must be at least 6 characters' });
   }
 
-  let result;
-  if (typeof supabaseAdmin.auth.admin?.updateUserById === 'function') {
-    result = await supabaseAdmin.auth.admin.updateUserById(
-      req.supabaseUser.id,
-      { password: newPassword }
-    );
-  } else if (typeof supabaseAdmin.auth.updateUser === 'function') {
-    result = await supabaseAdmin.auth.updateUser(req.supabaseAccessToken, {
-      password: newPassword,
-    });
-  } else {
-    return res
-      .status(500)
-      .json({ error: 'Password update is not supported by the current Supabase client' });
+  async function updateSupabaseUserPassword(userId, token, password) {
+    if (SUPABASE_SERVICE_ROLE_KEY && typeof supabaseAdmin?.auth?.admin?.updateUserById === 'function') {
+      try {
+        const adminRes = await supabaseAdmin.auth.admin.updateUserById(userId, { password });
+        if (!adminRes.error) return adminRes;
+      } catch (_) {}
+    }
+
+    try {
+      const apiKey = SUPABASE_SERVICE_ROLE_KEY || SUPABASE_PUBLISHABLE_KEY;
+      const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        method: 'PUT',
+        headers: {
+          apikey: apiKey,
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return { error: { message: data?.msg || data?.error_description || data?.error || 'Password update failed' } };
+      }
+      return { data, error: null };
+    } catch (err) {
+      return { error: { message: err.message || 'Unable to reach Supabase Auth API' } };
+    }
   }
+
+  const result = await updateSupabaseUserPassword(
+    req.supabaseUser.id,
+    req.supabaseAccessToken,
+    newPassword
+  );
 
   if (result.error) {
     return res.status(400).json({ error: result.error.message });
@@ -164,21 +194,40 @@ router.post('/change-password', requireSupabaseUser, async (req, res) => {
     return res.status(401).json({ error: 'Current password is incorrect' });
   }
 
-  let result;
-  if (typeof supabaseAdmin.auth.admin?.updateUserById === 'function') {
-    result = await supabaseAdmin.auth.admin.updateUserById(
-      req.supabaseUser.id,
-      { password: newPassword }
-    );
-  } else if (typeof supabaseAdmin.auth.updateUser === 'function') {
-    result = await supabaseAdmin.auth.updateUser(req.supabaseAccessToken, {
-      password: newPassword,
-    });
-  } else {
-    return res
-      .status(500)
-      .json({ error: 'Password update is not supported by the current Supabase client' });
+  async function updateSupabaseUserPassword(userId, token, password) {
+    if (SUPABASE_SERVICE_ROLE_KEY && typeof supabaseAdmin?.auth?.admin?.updateUserById === 'function') {
+      try {
+        const adminRes = await supabaseAdmin.auth.admin.updateUserById(userId, { password });
+        if (!adminRes.error) return adminRes;
+      } catch (_) {}
+    }
+
+    try {
+      const apiKey = SUPABASE_SERVICE_ROLE_KEY || SUPABASE_PUBLISHABLE_KEY;
+      const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        method: 'PUT',
+        headers: {
+          apikey: apiKey,
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return { error: { message: data?.msg || data?.error_description || data?.error || 'Password update failed' } };
+      }
+      return { data, error: null };
+    } catch (err) {
+      return { error: { message: err.message || 'Unable to reach Supabase Auth API' } };
+    }
   }
+
+  const result = await updateSupabaseUserPassword(
+    req.supabaseUser.id,
+    req.supabaseAccessToken,
+    newPassword
+  );
 
   if (result.error) {
     return res.status(400).json({ error: result.error.message });

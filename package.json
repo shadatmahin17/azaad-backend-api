@@ -9,7 +9,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "build": "cd frontend && npm install --include=dev && npm run build"
+    "build": "cd frontend && npm install --include=dev && npm run build",
+    "lint": "node --check server.js db.js $(find src -name '*.js')",
+    "test": "node --test 'src/**/*.test.js'"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",

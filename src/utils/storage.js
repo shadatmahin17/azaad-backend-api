@@ -36,6 +36,8 @@ async function uploadToSupabaseBucket(bucket, objectPath, localFilePath, content
       .from(bucket)
       .upload(objectPath, fileBuffer, uploadOptions);
 
+    fileBuffer = null; // Release buffer reference immediately to free heap memory
+
     if (uploadError) {
       console.error(`Supabase storage upload failed (${bucket}/${objectPath}):`, uploadError.message);
       return null;

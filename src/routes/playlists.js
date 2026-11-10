@@ -23,8 +23,8 @@ function sanitizeSongIds(songIds) {
  * 2. Request was authenticated by the owner of the playlist.
  */
 function canModifyPlaylist(req, playlist) {
-  // If authenticated via master API key
-  if (!req.supabaseUser) {
+  // If authenticated via master API key or admin role
+  if (!req.supabaseUser || req.supabaseUser.id === 'admin') {
     return true;
   }
   // Check if current user matches playlist owner

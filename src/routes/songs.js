@@ -9,12 +9,15 @@ const { normalizeMediaUrl, isAllowedMediaUrl } = require('../utils/media');
 const { normalizeCategory } = require('../utils/category');
 const { uploadToSupabaseBucket, removeFromSupabaseBucket } = require('../utils/storage');
 const { syncSupabaseStorageSongs } = require('../utils/supabaseSync');
-const { ROOT_DIR, SUPABASE_SONGS_BUCKET } = require('../config/env');
+const { removeSongFromAllPlaylists } = require('../utils/playlists');
+const { ROOT_DIR, SUPABASE_SONGS_BUCKET, USE_SUPABASE } = require('../config/env');
 
 const router = express.Router();
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
+
+let initialBootSynced = false;
 
 router.get('/sync', async (req, res) => {
   try {
@@ -27,7 +30,8 @@ router.get('/sync', async (req, res) => {
 
 router.get('/', async (req, res) => {
   let songs = readSongs();
-  if (songs.length === 0) {
+  if (songs.length === 0 && !initialBootSynced && USE_SUPABASE) {
+    initialBootSynced = true;
     songs = await syncSupabaseStorageSongs();
   }
 
@@ -307,6 +311,9 @@ router.delete('/:id', requireAuth, (req, res) => {
 
     removeFromSupabaseBucket(SUPABASE_SONGS_BUCKET, removed.audioUrl).catch(() => {});
     removeFromSupabaseBucket(SUPABASE_SONGS_BUCKET, removed.coverUrl).catch(() => {});
+
+    // Clean up ghost references from all playlists
+    removeSongFromAllPlaylists(removed.id);
 
     writeSongs(songs);
     return res.json({ success: true, removed });
